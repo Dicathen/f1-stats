@@ -66,12 +66,11 @@
 						{/if}
 					</div>
 					<p class="text-balance">
-						{driver.givenName} {driver.familyName} is a Formula 1 driver from {driver.nationality}.
 						<!-- Updated description to reflect 2025 season stats -->
 						{#if seasonStats.wins > 0}
 							In the 2025 season, {driver.familyName} has achieved {seasonStats.wins} {seasonStats.wins === 1 ? 'win' : 'wins'} and {seasonStats.podiums} {seasonStats.podiums === 1 ? 'podium' : 'podiums'}.
 						{:else if seasonStats.totalRaces > 0}
-							{driver.familyName} is competing in the 2025 Formula 1 season with {seasonStats.totalPoints} points earned.
+							{driver.familyName} is competing in the 2025 Formula 1 season with {seasonStats.championshipPoints} points earned.
 						{/if}
 					</p>
 				</div>
@@ -92,7 +91,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>Podiums</CardDescription>
+					<CardDescription>2025 Podiums</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.podiums}</p>
@@ -101,7 +100,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>Pole Positions</CardDescription>
+					<CardDescription>2025 Pole Positions</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.poles}</p>
@@ -110,7 +109,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>Season Points</CardDescription>
+					<CardDescription>2025 Season Points</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.championshipPoints}</p>
@@ -122,7 +121,7 @@
 		<div class="grid gap-4 md:grid-cols-2">
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>Fastest Laps</CardDescription>
+					<CardDescription>2025 Fastest Laps</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.fastestLaps}</p>
@@ -131,7 +130,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>Races Completed</CardDescription>
+					<CardDescription>2025 Races Completed</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.totalRaces}</p>

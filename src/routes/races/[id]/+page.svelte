@@ -107,21 +107,24 @@
 				{#if race.Results && race.Results.length > 0}
 					<div class="space-y-2">
 						{#each race.Results as result}
-							<div class="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
-								<div class="flex items-center gap-4">
-									<div class="w-10 h-10 rounded-full {parseInt(result.position) <= 3 ? 'bg-primary' : 'bg-muted'} flex items-center justify-center flex-shrink-0">
-										<span class="font-bold {parseInt(result.position) <= 3 ? 'text-primary-foreground' : 'text-foreground'}">{result.position}</span>
+							<a href="/drivers/{result.Driver.driverId}" class="block hover:bg-secondary transition-colors">
+								<div class="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
+									
+									<div class="flex items-center gap-4">
+										<div class="w-10 h-10 rounded-full {parseInt(result.position) <= 3 ? 'bg-primary' : 'bg-muted'} flex items-center justify-center flex-shrink-0">
+											<span class="font-bold {parseInt(result.position) <= 3 ? 'text-primary-foreground' : 'text-foreground'}">{result.position}</span>
+										</div>
+										<div>
+											<p class="font-semibold" style="color: {getTeamColor(result.Constructor.name)}">{result.Driver.givenName} {result.Driver.familyName}</p>
+											<p class="text-sm text-muted-foreground">{result.Constructor.name}</p>
+										</div>
 									</div>
-									<div>
-										<p class="font-semibold" style="color: {getTeamColor(result.Constructor.name)}">{result.Driver.givenName} {result.Driver.familyName}</p>
-										<p class="text-sm text-muted-foreground">{result.Constructor.name}</p>
+									<div class="text-right">
+										<p class="font-mono text-sm">{result.Time?.time || result.status}</p>
+										<p class="text-xs text-muted-foreground">{result.points} pts</p>
 									</div>
 								</div>
-								<div class="text-right">
-									<p class="font-mono text-sm">{result.Time?.time || result.status}</p>
-									<p class="text-xs text-muted-foreground">{result.points} pts</p>
-								</div>
-							</div>
+							</a> 
 						{/each}
 					</div>
 				{:else}
