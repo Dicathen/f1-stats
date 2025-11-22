@@ -48,7 +48,7 @@
 				Formula 1 <span class="text-primary">Statistics</span>
 			</h1>
 			<p class="text-xl text-muted-foreground max-w-2xl text-balance mb-6">
-				Comprehensive F1 data, driver profiles, race results, and lap time analysis
+				Current F1 Season data, driver profiles, and race results.
 			</p>
 			<div class="flex gap-4">
 				<Button href="/drivers" class="bg-primary hover:bg-primary/90">

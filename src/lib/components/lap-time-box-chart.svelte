@@ -50,7 +50,7 @@
 <Card>
 	<CardHeader>
 		<CardTitle>Lap Time Distribution</CardTitle>
-		<CardDescription>Box plot showing lap time statistics per driver</CardDescription>
+		<CardDescription>Box plot showing lap time statistics for podium drivers</CardDescription>
 	</CardHeader>
 	<CardContent>
 		<div class="space-y-6">
@@ -75,7 +75,7 @@
 						<!-- Box (Q1 to Q3) -->
 						<div 
 							class="absolute top-1/2 -translate-y-1/2 h-8 rounded border-2"
-							style="left: {scale(stats.q1)}%; width: {scale(stats.q3) - scale(stats.q1)}%; background-color: {color}40; border-color: {color}"
+							style="left: {scale(stats.q1)}%; width: {scale(stats.q3) - scale(stats.q1)}%; background-color: color-mix(in srgb, {color} 40%, transparent); border-color: {color}"
 						></div>
 						
 						<!-- Median line -->

@@ -29,7 +29,7 @@
 			
 			// Fetch lap times for top 5 finishers
 			if (race.Results && race.Results.length > 0) {
-				const topDrivers = race.Results.slice(0, 5);
+				const topDrivers = race.Results.slice(0, 3);
 				const lapTimesPromises = topDrivers.map(result => 
 					getDriverLapTimes(season, round, result.Driver.driverId)
 				);
