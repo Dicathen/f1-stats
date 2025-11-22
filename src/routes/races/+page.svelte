@@ -19,7 +19,7 @@
 			currentSeasonRaces = races;
 			loading = false;
 		} catch (error) {
-			console.error('[v0] Error fetching races:', error);
+			console.error(' Error fetching races:', error);
 			loading = false;
 		}
 	}

@@ -23,7 +23,7 @@ function getFromCache<T>(key: string): T | null {
 
     // Check if cache is still valid
     if (now - entry.timestamp < CACHE_DURATION) {
-      console.log("[v0] Cache hit for:", key)
+      console.log("Cache hit for:", key)
       return entry.data
     }
 
@@ -31,7 +31,7 @@ function getFromCache<T>(key: string): T | null {
     localStorage.removeItem(getCacheKey(key))
     return null
   } catch (error) {
-    console.error("[v0] Error reading from cache:", error)
+    console.error("Error reading from cache:", error)
     return null
   }
 }
@@ -43,9 +43,9 @@ function saveToCache<T>(key: string, data: T): void {
       timestamp: Date.now(),
     }
     localStorage.setItem(getCacheKey(key), JSON.stringify(entry))
-    console.log("[v0] Cached:", key)
+    console.log("Cached:", key)
   } catch (error) {
-    console.error("[v0] Error saving to cache:", error)
+    console.error("Error saving to cache:", error)
   }
 }
 
@@ -69,7 +69,7 @@ async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T 
 
     return data
   } catch (error) {
-    console.error("[v0] Error fetching data:", error)
+    console.error("Error fetching data:", error)
     return null
   }
 }
@@ -134,7 +134,7 @@ export async function getDriverStandings(season: string | number = "current", ro
   const data = await fetchWithCache(`/${season}/${round}/driverStandings.json`, cacheKey)
 
   if (!data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -147,7 +147,7 @@ export async function getDrivers(season: string | number = "current") {
   const data = await fetchWithCache(`/${season}/drivers.json?limit=100`, cacheKey)
 
   if (!data?.MRData?.DriverTable?.Drivers) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -160,7 +160,7 @@ export async function getDriver(driverId: string) {
   const data = await fetchWithCache(`/drivers/${driverId}.json`, cacheKey)
 
   if (!data?.MRData?.DriverTable?.Drivers?.[0]) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return null
   }
 
@@ -174,16 +174,16 @@ export async function getDriverCareerStats(driverId: string) {
     const cachedCareerStats = getFromCache(careerStatsCacheKey)
 
     if (cachedCareerStats !== null) {
-      console.log("[v0] Career stats loaded from cache for:", driverId)
+      console.log("Career stats loaded from cache for:", driverId)
       return cachedCareerStats
     }
 
-    console.log("[v0] Fetching career stats for:", driverId)
+    console.log("Fetching career stats for:", driverId)
 
     // First, get the driver info
     const driver = await getDriver(driverId)
     if (!driver) {
-      console.error("[v0] Driver not found:", driverId)
+      console.error("Driver not found:", driverId)
       return null
     }
 
@@ -223,7 +223,7 @@ export async function getDriverCareerStats(driverId: string) {
             await new Promise((resolve) => setTimeout(resolve, 200))
           }
         } catch (error) {
-          console.error("[v0] Error fetching data for year", year, error)
+          console.error("Error fetching data for year", year, error)
           continue
         }
       }
@@ -252,7 +252,7 @@ export async function getDriverCareerStats(driverId: string) {
       }
     }
 
-    console.log("[v0] Career stats calculated:", { wins, podiums, poles, fastestLaps, totalPoints, totalRaces })
+    console.log("Career stats calculated:", { wins, podiums, poles, fastestLaps, totalPoints, totalRaces })
 
     // Get championships
     const championshipsData = await getDriverChampionships(driverId)
@@ -273,7 +273,7 @@ export async function getDriverCareerStats(driverId: string) {
 
     return careerStats
   } catch (error) {
-    console.error("[v0] Error calculating career stats:", error)
+    console.error("Error calculating career stats:", error)
     return null
   }
 }
@@ -284,7 +284,7 @@ export async function getDriverChampionships(driverId: string) {
   const data = await fetchWithCache(`/drivers/${driverId}/driverStandings/1.json?limit=100`, cacheKey)
 
   if (!data?.MRData?.StandingsTable?.StandingsLists) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -297,7 +297,7 @@ export async function getDriverResults(driverId: string, season: string | number
   const data = await fetchWithCache(`/${season}/drivers/${driverId}/results.json?limit=100`, cacheKey)
 
   if (!data?.MRData?.RaceTable?.Races) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -310,7 +310,7 @@ export async function getRaces(season: string | number = "current") {
   const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey)
 
   if (!data?.MRData?.RaceTable?.Races) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -323,12 +323,12 @@ export async function getRaceResults(season: string | number, round: string | nu
   const data = await fetchWithCache(`/${season}/${round}/results.json`, cacheKey)
 
   if (!data?.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
-    console.log(`[v0] No race results available for ${season} round ${round}`)
+    console.log(`No race results available for ${season} round ${round}`)
     return null
   }
 
   if (!data.MRData.RaceTable.Races[0]) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return null
   }
 
@@ -341,7 +341,7 @@ export async function getDriverLapTimes(season: string | number, round: string |
   const data = await fetchWithCache(`/${season}/${round}/drivers/${driverId}/laps.json?limit=1000`, cacheKey)
 
   if (!data?.MRData?.RaceTable?.Races?.[0]?.Laps) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -354,7 +354,7 @@ export async function getRaceLapTimes(season: string | number, round: string | n
   const data = await fetchWithCache(`/${season}/${round}/laps.json?limit=2000`, cacheKey)
 
   if (!data?.MRData?.RaceTable?.Races?.[0]?.Laps) {
-    console.error("[v0] Unexpected response structure:", data)
+    console.error("Unexpected response structure:", data)
     return []
   }
 
@@ -431,7 +431,7 @@ export async function getDriver2025Stats(driverId: string) {
     saveToCache(cacheKey, seasonStats)
     return seasonStats
   } catch (error) {
-    console.error("[v0] Error fetching 2025 stats:", error)
+    console.error("Error fetching 2025 stats:", error)
     return null
   }
 }

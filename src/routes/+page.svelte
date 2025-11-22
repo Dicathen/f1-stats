@@ -20,7 +20,7 @@
 			recentRaces = races.slice(-3).reverse(); // Last 3 races
 			loading = false;
 		} catch (error) {
-			console.error('[v0] Error fetching data:', error);
+			console.error('Error fetching data:', error);
 			loading = false;
 		}
 	});

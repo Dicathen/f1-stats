@@ -55,7 +55,7 @@
 			
 			loading = false;
 		} catch (error) {
-			console.error('[v0] Error fetching race data:', error);
+			console.error(' Error fetching race data:', error);
 			loading = false;
 		}
 	});

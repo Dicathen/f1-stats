@@ -32,7 +32,7 @@
 			
 			loading = false;
 		} catch (error) {
-			console.error('[v0] Error fetching driver data:', error);
+			console.error(' Error fetching driver data:', error);
 			loading = false;
 		}
 	});

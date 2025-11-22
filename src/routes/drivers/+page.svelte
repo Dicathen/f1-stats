@@ -28,7 +28,7 @@
 			
 			loading = false;
 		} catch (error) {
-			console.error('[v0] Error fetching drivers:', error);
+			console.error(' Error fetching drivers:', error);
 			loading = false;
 		}
 	});
