@@ -17,7 +17,13 @@
 			]);
 			
 			currentStandings = standings.slice(0, 5); // Top 5 drivers
-			recentRaces = races.slice(-3).reverse(); // Last 3 races
+
+			const now = new Date();
+			const completedRaces = races.filter(race => {
+				const raceDate = new Date(race.date);
+				return raceDate < now || (race.Results && race.Results.legnth > 0);
+			});
+			recentRaces = completedRaces.slice(-3).reverse(); // Last 3 races
 			loading = false;
 		} catch (error) {
 			console.error('Error fetching data:', error);
