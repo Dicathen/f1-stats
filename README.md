@@ -1,38 +1,16 @@
-# sv
+# F1 Stats
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Website to display current year F1 stats + some historical data.
 
-## Creating a project
+The reasoning to not include total historical data is to respect the [jolpica-f1](https://github.com/jolpica/jolpica-f1/tree/main) API rate limits. This is also the reason of limiting the boxplot comparison to 5 drivers.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
+- Current driver's championship standing
+- Race information with standings and finish times.
+- Boxplot for top 5 drivers' lap times for comparison.
+- Driver's list with individual pages with current year stats.
 
-```bash
-# create a new project in the current directory
-npx sv create
 
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+## Todo
+- Implement constructor's championship
+- Pace differential between top 5 drivers
