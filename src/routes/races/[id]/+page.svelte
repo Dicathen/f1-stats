@@ -164,6 +164,6 @@
 			</CardContent>
 		</Card>
 	{:else}
-		<p class="text-muted-foreground">Race not found</p>
+		<p class="text-muted-foreground">Race not completed</p>
 	{/if}
 </div>
