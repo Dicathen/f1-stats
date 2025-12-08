@@ -12,24 +12,24 @@ export const teamColors: Record<string, string> = {
   "kick sauber": "rgb(1, 192, 14)",
   sauber: "rgb(1, 192, 14)",
   haas: "rgb(156, 159, 162)",
-}
+};
 
 export function getTeamColor(constructorName?: string): string | undefined {
-  if (!constructorName) return undefined
+  if (!constructorName) return undefined;
 
-  const normalizedName = constructorName.toLowerCase()
+  const normalizedName = constructorName.toLowerCase();
 
   // Direct match
   if (teamColors[normalizedName]) {
-    return teamColors[normalizedName]
+    return teamColors[normalizedName];
   }
 
   // Partial match (e.g., "Mercedes-AMG" matches "mercedes")
   for (const [key, color] of Object.entries(teamColors)) {
     if (normalizedName.includes(key)) {
-      return color
+      return color;
     }
   }
 
-  return undefined
+  return undefined;
 }

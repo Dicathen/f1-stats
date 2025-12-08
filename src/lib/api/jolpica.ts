@@ -1,38 +1,38 @@
 // Jolpica F1 API utilities with caching
-const BASE_URL = "https://api.jolpi.ca/ergast/f1"
+const BASE_URL = "https://api.jolpi.ca/ergast/f1";
 
-const CACHE_PREFIX = "f1_cache_"
-const CACHE_DURATION = 1000 * 60 * 60 // 1 hour in milliseconds
+const CACHE_PREFIX = "f1_cache_";
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour in milliseconds
 
 interface CacheEntry<T> {
-  data: T
-  timestamp: number
+  data: T;
+  timestamp: number;
 }
 
 function getCacheKey(endpoint: string): string {
-  return `${CACHE_PREFIX}${endpoint}`
+  return `${CACHE_PREFIX}${endpoint}`;
 }
 
 function getFromCache<T>(key: string): T | null {
   try {
-    const cached = localStorage.getItem(getCacheKey(key))
-    if (!cached) return null
+    const cached = localStorage.getItem(getCacheKey(key));
+    if (!cached) return null;
 
-    const entry: CacheEntry<T> = JSON.parse(cached)
-    const now = Date.now()
+    const entry: CacheEntry<T> = JSON.parse(cached);
+    const now = Date.now();
 
     // Check if cache is still valid
     if (now - entry.timestamp < CACHE_DURATION) {
-      console.log("Cache hit for:", key)
-      return entry.data
+      console.log("Cache hit for:", key);
+      return entry.data;
     }
 
     // Cache expired, remove it
-    localStorage.removeItem(getCacheKey(key))
-    return null
+    localStorage.removeItem(getCacheKey(key));
+    return null;
   } catch (error) {
-    console.error("Error reading from cache:", error)
-    return null
+    console.error("Error reading from cache:", error);
+    return null;
   }
 }
 
@@ -41,222 +41,241 @@ function saveToCache<T>(key: string, data: T): void {
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
-    }
-    localStorage.setItem(getCacheKey(key), JSON.stringify(entry))
-    console.log("Cached:", key)
+    };
+    localStorage.setItem(getCacheKey(key), JSON.stringify(entry));
+    console.log("Cached:", key);
   } catch (error) {
-    console.error("Error saving to cache:", error)
+    console.error("Error saving to cache:", error);
   }
 }
 
-async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T | null> {
+async function fetchWithCache<T>(
+  endpoint: string,
+  cacheKey: string,
+): Promise<T | null> {
   // Check cache first
-  const cached = getFromCache<T>(cacheKey)
+  const cached = getFromCache<T>(cacheKey);
   if (cached !== null) {
-    return cached
+    return cached;
   }
 
   // Fetch from API
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`)
+    const response = await fetch(`${BASE_URL}${endpoint}`);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = await response.json()
+    const data = await response.json();
 
     // Save to cache
-    saveToCache(cacheKey, data)
+    saveToCache(cacheKey, data);
 
-    return data
+    return data;
   } catch (error) {
-    console.error("Error fetching data:", error)
-    return null
+    console.error("Error fetching data:", error);
+    return null;
   }
 }
 
 export interface Driver {
-  driverId: string
-  givenName: string
-  familyName: string
-  dateOfBirth: string
-  nationality: string
-  permanentNumber?: string
-  code?: string
-  url: string
+  driverId: string;
+  givenName: string;
+  familyName: string;
+  dateOfBirth: string;
+  nationality: string;
+  permanentNumber?: string;
+  code?: string;
+  url: string;
 }
 
 export interface Standing {
-  position: string
-  points: string
-  wins: string
-  Driver: Driver
-  Constructors: Array<{ constructorId: string; name: string }>
+  position: string;
+  points: string;
+  wins: string;
+  Driver: Driver;
+  Constructors: Array<{ constructorId: string; name: string }>;
 }
 
 export interface Race {
-  season: string
-  round: string
-  raceName: string
+  season: string;
+  round: string;
+  raceName: string;
   Circuit: {
-    circuitId: string
-    circuitName: string
+    circuitId: string;
+    circuitName: string;
     Location: {
-      locality: string
-      country: string
-    }
-  }
-  date: string
-  time?: string
+      locality: string;
+      country: string;
+    };
+  };
+  date: string;
+  time?: string;
   Results?: Array<{
-    position: string
-    points: string
-    Driver: Driver
-    Constructor: { name: string }
-    Time?: { time: string }
-    status: string
-    laps: string
-    grid: string
+    position: string;
+    points: string;
+    Driver: Driver;
+    Constructor: { name: string };
+    Time?: { time: string };
+    status: string;
+    laps: string;
+    grid: string;
     FastestLap?: {
-      rank: string
-    }
-  }>
+      rank: string;
+    };
+  }>;
 }
 
 export interface LapTime {
-  lap: string
-  position: string
-  time: string
+  lap: string;
+  position: string;
+  time: string;
 }
 
 // Get current season driver standings
-export async function getDriverStandings(season: string | number = "current", round: string | number = "last") {
-  const cacheKey = `driver_standings_${season}_${round}`
-  const data = await fetchWithCache(`/${season}/${round}/driverStandings.json`, cacheKey)
+export async function getDriverStandings(
+  season: string | number = "current",
+  round: string | number = "last",
+) {
+  const cacheKey = `driver_standings_${season}_${round}`;
+  const data = await fetchWithCache(
+    `/${season}/${round}/driverStandings.json`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.StandingsTable.StandingsLists[0].DriverStandings
+  return data.MRData.StandingsTable.StandingsLists[0].DriverStandings;
 }
 
 // Get all drivers for a season
 export async function getDrivers(season: string | number = "current") {
-  const cacheKey = `drivers_${season}`
-  const data = await fetchWithCache(`/${season}/drivers.json?limit=100`, cacheKey)
+  const cacheKey = `drivers_${season}`;
+  const data = await fetchWithCache(
+    `/${season}/drivers.json?limit=100`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.DriverTable?.Drivers) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.DriverTable.Drivers
+  return data.MRData.DriverTable.Drivers;
 }
 
 // Get specific driver details
 export async function getDriver(driverId: string) {
-  const cacheKey = `driver_${driverId}`
-  const data = await fetchWithCache(`/drivers/${driverId}.json`, cacheKey)
+  const cacheKey = `driver_${driverId}`;
+  const data = await fetchWithCache(`/drivers/${driverId}.json`, cacheKey);
 
   if (!data?.MRData?.DriverTable?.Drivers?.[0]) {
-    console.error("Unexpected response structure:", data)
-    return null
+    console.error("Unexpected response structure:", data);
+    return null;
   }
 
-  return data.MRData.DriverTable.Drivers[0]
+  return data.MRData.DriverTable.Drivers[0];
 }
 
 // Get driver career statistics by fetching all results across all seasons
 export async function getDriverCareerStats(driverId: string) {
   try {
-    const careerStatsCacheKey = `driver_career_stats_${driverId}`
-    const cachedCareerStats = getFromCache(careerStatsCacheKey)
+    const careerStatsCacheKey = `driver_career_stats_${driverId}`;
+    const cachedCareerStats = getFromCache(careerStatsCacheKey);
 
     if (cachedCareerStats !== null) {
-      console.log("Career stats loaded from cache for:", driverId)
-      return cachedCareerStats
+      console.log("Career stats loaded from cache for:", driverId);
+      return cachedCareerStats;
     }
 
-    console.log("Fetching career stats for:", driverId)
+    console.log("Fetching career stats for:", driverId);
 
     // First, get the driver info
-    const driver = await getDriver(driverId)
+    const driver = await getDriver(driverId);
     if (!driver) {
-      console.error("Driver not found:", driverId)
-      return null
+      console.error("Driver not found:", driverId);
+      return null;
     }
 
     // Get current year
-    const currentYear = new Date().getFullYear()
+    const currentYear = new Date().getFullYear();
 
     // We'll fetch results for each year
-    let wins = 0
-    let podiums = 0
-    let poles = 0
-    let fastestLaps = 0
-    let totalPoints = 0
-    let totalRaces = 0
+    let wins = 0;
+    let podiums = 0;
+    let poles = 0;
+    let fastestLaps = 0;
+    let totalPoints = 0;
+    let totalRaces = 0;
 
     // Fetch results for each year starting from 2001 (when modern F1 stats are more reliable)
     for (let year = 2001; year <= currentYear; year++) {
-      const cacheKey = `driver_results_${driverId}_${year}`
+      const cacheKey = `driver_results_${driverId}_${year}`;
 
-      const cachedData = getFromCache(cacheKey)
-      let data
+      const cachedData = getFromCache(cacheKey);
+      let data;
 
       if (cachedData !== null) {
         // Use cached data, no delay needed
-        data = cachedData
+        data = cachedData;
       } else {
         // Fetch from API
-        const endpoint = `/${year}/drivers/${driverId}/results.json?limit=100`
+        const endpoint = `/${year}/drivers/${driverId}/results.json?limit=100`;
         try {
-          const response = await fetch(`${BASE_URL}${endpoint}`)
+          const response = await fetch(`${BASE_URL}${endpoint}`);
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
-          data = await response.json()
-          saveToCache(cacheKey, data)
+          data = await response.json();
+          saveToCache(cacheKey, data);
 
           if (year < currentYear) {
-            await new Promise((resolve) => setTimeout(resolve, 200))
+            await new Promise((resolve) => setTimeout(resolve, 200));
           }
         } catch (error) {
-          console.error("Error fetching data for year", year, error)
-          continue
+          console.error("Error fetching data for year", year, error);
+          continue;
         }
       }
 
       if (data?.MRData?.RaceTable?.Races) {
-        const races = data.MRData.RaceTable.Races
-        totalRaces += races.length
+        const races = data.MRData.RaceTable.Races;
+        totalRaces += races.length;
 
         races.forEach((race: Race) => {
           if (race.Results && race.Results.length > 0) {
-            const result = race.Results[0] // Driver's result in this race
-            const position = Number.parseInt(result.position)
-            const points = Number.parseFloat(result.points)
+            const result = race.Results[0]; // Driver's result in this race
+            const position = Number.parseInt(result.position);
+            const points = Number.parseFloat(result.points);
 
-            if (position === 1) wins++
-            if (position <= 3) podiums++
-            totalPoints += points
+            if (position === 1) wins++;
+            if (position <= 3) podiums++;
+            totalPoints += points;
 
             // Check for pole position (grid position 1)
-            if (result.grid === "1") poles++
+            if (result.grid === "1") poles++;
 
             // Check for fastest lap
-            if (result.FastestLap?.rank === "1") fastestLaps++
+            if (result.FastestLap?.rank === "1") fastestLaps++;
           }
-        })
+        });
       }
     }
 
-    console.log("Career stats calculated:", { wins, podiums, poles, fastestLaps, totalPoints, totalRaces })
+    console.log("Career stats calculated:", {
+      wins,
+      podiums,
+      poles,
+      fastestLaps,
+      totalPoints,
+      totalRaces,
+    });
 
     // Get championships
-    const championshipsData = await getDriverChampionships(driverId)
-    const championships = championshipsData.length
+    const championshipsData = await getDriverChampionships(driverId);
+    const championships = championshipsData.length;
 
     const careerStats = {
       wins,
@@ -267,171 +286,204 @@ export async function getDriverCareerStats(driverId: string) {
       totalRaces,
       championships,
       driver,
-    }
+    };
 
-    saveToCache(careerStatsCacheKey, careerStats)
+    saveToCache(careerStatsCacheKey, careerStats);
 
-    return careerStats
+    return careerStats;
   } catch (error) {
-    console.error("Error calculating career stats:", error)
-    return null
+    console.error("Error calculating career stats:", error);
+    return null;
   }
 }
 
 // Get driver championship wins
 export async function getDriverChampionships(driverId: string) {
-  const cacheKey = `driver_championships_${driverId}`
-  const data = await fetchWithCache(`/drivers/${driverId}/driverStandings/1.json?limit=100`, cacheKey)
+  const cacheKey = `driver_championships_${driverId}`;
+  const data = await fetchWithCache(
+    `/drivers/${driverId}/driverStandings/1.json?limit=100`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.StandingsTable?.StandingsLists) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.StandingsTable.StandingsLists
+  return data.MRData.StandingsTable.StandingsLists;
 }
 
 // Get driver results for current/recent season
-export async function getDriverResults(driverId: string, season: string | number = "current") {
-  const cacheKey = `driver_results_${driverId}_${season}`
-  const data = await fetchWithCache(`/${season}/drivers/${driverId}/results.json?limit=100`, cacheKey)
+export async function getDriverResults(
+  driverId: string,
+  season: string | number = "current",
+) {
+  const cacheKey = `driver_results_${driverId}_${season}`;
+  const data = await fetchWithCache(
+    `/${season}/drivers/${driverId}/results.json?limit=100`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.RaceTable?.Races) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.RaceTable.Races
+  return data.MRData.RaceTable.Races;
 }
 
 // Get race schedule for a season
 export async function getRaces(season: string | number = "current") {
-  const cacheKey = `races_${season}`
-  const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey)
+  const cacheKey = `races_${season}`;
+  const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey);
 
   if (!data?.MRData?.RaceTable?.Races) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.RaceTable.Races
+  return data.MRData.RaceTable.Races;
 }
 
 // Get specific race results
-export async function getRaceResults(season: string | number, round: string | number) {
-  const cacheKey = `race_results_${season}_${round}`
-  const data = await fetchWithCache(`/${season}/${round}/results.json`, cacheKey)
+export async function getRaceResults(
+  season: string | number,
+  round: string | number,
+) {
+  const cacheKey = `race_results_${season}_${round}`;
+  const data = await fetchWithCache(
+    `/${season}/${round}/results.json`,
+    cacheKey,
+  );
 
-  if (!data?.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
-    console.log(`No race results available for ${season} round ${round}`)
-    return null
+  if (
+    !data?.MRData?.RaceTable?.Races ||
+    data.MRData.RaceTable.Races.length === 0
+  ) {
+    console.log(`No race results available for ${season} round ${round}`);
+    return null;
   }
 
   if (!data.MRData.RaceTable.Races[0]) {
-    console.error("Unexpected response structure:", data)
-    return null
+    console.error("Unexpected response structure:", data);
+    return null;
   }
 
-  return data.MRData.RaceTable.Races[0]
+  return data.MRData.RaceTable.Races[0];
 }
 
 // Get lap times for a specific driver in a race
-export async function getDriverLapTimes(season: string | number, round: string | number, driverId: string) {
-  const cacheKey = `lap_times_${season}_${round}_${driverId}`
-  const data = await fetchWithCache(`/${season}/${round}/drivers/${driverId}/laps.json?limit=1000`, cacheKey)
+export async function getDriverLapTimes(
+  season: string | number,
+  round: string | number,
+  driverId: string,
+) {
+  const cacheKey = `lap_times_${season}_${round}_${driverId}`;
+  const data = await fetchWithCache(
+    `/${season}/${round}/drivers/${driverId}/laps.json?limit=1000`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.RaceTable?.Races?.[0]?.Laps) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.RaceTable.Races[0].Laps
+  return data.MRData.RaceTable.Races[0].Laps;
 }
 
 // Get all lap times for a race (all drivers)
-export async function getRaceLapTimes(season: string | number, round: string | number) {
-  const cacheKey = `race_lap_times_${season}_${round}`
-  const data = await fetchWithCache(`/${season}/${round}/laps.json?limit=2000`, cacheKey)
+export async function getRaceLapTimes(
+  season: string | number,
+  round: string | number,
+) {
+  const cacheKey = `race_lap_times_${season}_${round}`;
+  const data = await fetchWithCache(
+    `/${season}/${round}/laps.json?limit=2000`,
+    cacheKey,
+  );
 
   if (!data?.MRData?.RaceTable?.Races?.[0]?.Laps) {
-    console.error("Unexpected response structure:", data)
-    return []
+    console.error("Unexpected response structure:", data);
+    return [];
   }
 
-  return data.MRData.RaceTable.Races[0].Laps
+  return data.MRData.RaceTable.Races[0].Laps;
 }
 
 // Helper to calculate total wins, podiums, etc.
 export function calculateDriverStats(races: Race[]) {
-  let wins = 0
-  let podiums = 0
-  let poles = 0
-  let fastestLaps = 0
-  let totalPoints = 0
+  let wins = 0;
+  let podiums = 0;
+  let poles = 0;
+  let fastestLaps = 0;
+  let totalPoints = 0;
 
   races.forEach((race) => {
     if (race.Results && race.Results.length > 0) {
-      const result = race.Results[0]
-      const position = Number.parseInt(result.position)
-      const points = Number.parseFloat(result.points)
+      const result = race.Results[0];
+      const position = Number.parseInt(result.position);
+      const points = Number.parseFloat(result.points);
 
-      if (position === 1) wins++
-      if (position <= 3) podiums++
-      totalPoints += points
+      if (position === 1) wins++;
+      if (position <= 3) podiums++;
+      totalPoints += points;
 
       // Check for pole position
-      if (result.grid === "1") poles++
+      if (result.grid === "1") poles++;
 
       // Check for fastest lap
-      if (result.FastestLap?.rank === "1") fastestLaps++
+      if (result.FastestLap?.rank === "1") fastestLaps++;
     }
-  })
+  });
 
-  return { wins, podiums, poles, fastestLaps, totalPoints }
+  return { wins, podiums, poles, fastestLaps, totalPoints };
 }
 
 // Helper to format lap time string to seconds
 export function lapTimeToSeconds(timeStr: string): number {
-  const parts = timeStr.split(":")
+  const parts = timeStr.split(":");
   if (parts.length === 2) {
-    const minutes = Number.parseInt(parts[0])
-    const seconds = Number.parseFloat(parts[1])
-    return minutes * 60 + seconds
+    const minutes = Number.parseInt(parts[0]);
+    const seconds = Number.parseFloat(parts[1]);
+    return minutes * 60 + seconds;
   }
-  return Number.parseFloat(timeStr)
+  return Number.parseFloat(timeStr);
 }
 
 // Get driver statistics for the 2025 season
 export async function getDriver2025Stats(driverId: string) {
   try {
-    const cacheKey = `driver_2025_stats_${driverId}`
-    const cached = getFromCache(cacheKey)
+    const cacheKey = `driver_2025_stats_${driverId}`;
+    const cached = getFromCache(cacheKey);
 
     if (cached !== null) {
-      return cached
+      return cached;
     }
 
     // Fetch 2025 results
-    const results = await getDriverResults(driverId, 2025)
+    const results = await getDriverResults(driverId, 2025);
 
     // Calculate stats from 2025 results
-    const stats = calculateDriverStats(results)
+    const stats = calculateDriverStats(results);
 
     // Get 2025 standings to get current championship position
-    const standings = await getDriverStandings(2025, "last")
-    const driverStanding = standings.find((s: Standing) => s.Driver.driverId === driverId)
+    const standings = await getDriverStandings(2025, "last");
+    const driverStanding = standings.find(
+      (s: Standing) => s.Driver.driverId === driverId,
+    );
 
     const seasonStats = {
       ...stats,
       totalRaces: results.length,
       championshipPosition: driverStanding?.position || "N/A",
       championshipPoints: driverStanding?.points || "0",
-    }
+    };
 
-    saveToCache(cacheKey, seasonStats)
-    return seasonStats
+    saveToCache(cacheKey, seasonStats);
+    return seasonStats;
   } catch (error) {
-    console.error("Error fetching 2025 stats:", error)
-    return null
+    console.error("Error fetching 2025 stats:", error);
+    return null;
   }
 }
