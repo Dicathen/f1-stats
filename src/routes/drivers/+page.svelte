@@ -14,9 +14,11 @@
 				getDrivers('current'),
 				getDriverStandings('current', 'last')
 			]);
+
+			const validDrivers = allDrivers.filter(driver => driver.code);
 			
 			// Merge driver info with standings
-			drivers = allDrivers.map(driver => {
+			drivers = validDrivers.map(driver => {
 				const standing = standings.find((s: Standing) => s.Driver.driverId === driver.driverId);
 				return { ...driver, stats: standing };
 			}).sort((a, b) => {
