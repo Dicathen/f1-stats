@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { getDriver, getDriverResults, getDriver2025Stats, type Driver, type Race } from '$lib/api/jolpica';
+	import { getDriver, getDriverResults, getDriver2025Stats, getDriverCurrentStats, type Driver, type Race } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
 	
 	const driverId = $derived($page.params.id);
@@ -13,13 +13,14 @@
 	let recentResults = $state<Race[]>([]);
 	let seasonStats = $state({ wins: 0, podiums: 0, poles: 0, fastestLaps: 0, totalPoints: 0, totalRaces: 0, championshipPosition: 'N/A', championshipPoints: '0' });
 	let loading = $state(true);
+	let currentYear = new Date().getFullYear();
 	
 	onMount(async () => {
 		try {
 			const [driverData, results, stats] = await Promise.all([
 				getDriver(driverId),
-				getDriverResults(driverId, 2025),
-				getDriver2025Stats(driverId)
+				getDriverResults(driverId, "current"),
+				getDriverCurrentStats(driverId)
 			]);
 			
 			driver = driverData;
@@ -61,16 +62,16 @@
 						<!-- Updated badge to show 2025 championship position -->
 						{#if seasonStats.championshipPosition !== 'N/A'}
 							<Badge class="bg-primary text-primary-foreground">
-								P{seasonStats.championshipPosition} in 2025 Championship
+								P{seasonStats.championshipPosition} in {currentYear} Championship
 							</Badge>
 						{/if}
 					</div>
 					<p class="text-balance">
 						<!-- Updated description to reflect 2025 season stats -->
 						{#if seasonStats.wins > 0}
-							In the 2025 season, {driver.familyName} has achieved {seasonStats.wins} {seasonStats.wins === 1 ? 'win' : 'wins'} and {seasonStats.podiums} {seasonStats.podiums === 1 ? 'podium' : 'podiums'}.
+							In the {currentYear} season, {driver.familyName} has achieved {seasonStats.wins} {seasonStats.wins === 1 ? 'win' : 'wins'} and {seasonStats.podiums} {seasonStats.podiums === 1 ? 'podium' : 'podiums'}.
 						{:else if seasonStats.totalRaces > 0}
-							{driver.familyName} is competing in the 2025 Formula 1 season with {seasonStats.championshipPoints} points earned.
+							{driver.familyName} is competing in the {currentYear} Formula 1 season with {seasonStats.championshipPoints} points earned.
 						{/if}
 					</p>
 				</div>
@@ -82,7 +83,7 @@
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Wins</CardDescription>
+					<CardDescription>{currentYear} Wins</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold text-primary">{seasonStats.wins}</p>
@@ -91,7 +92,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Podiums</CardDescription>
+					<CardDescription>{currentYear} Podiums</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.podiums}</p>
@@ -100,7 +101,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Pole Positions</CardDescription>
+					<CardDescription>{currentYear} Pole Positions</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.poles}</p>
@@ -109,7 +110,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Season Points</CardDescription>
+					<CardDescription>{currentYear} Season Points</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.championshipPoints}</p>
@@ -121,7 +122,7 @@
 		<div class="grid gap-4 md:grid-cols-2">
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Fastest Laps</CardDescription>
+					<CardDescription>{currentYear} Fastest Laps</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.fastestLaps}</p>
@@ -130,7 +131,7 @@
 			
 			<Card>
 				<CardHeader class="pb-2">
-					<CardDescription>2025 Races Completed</CardDescription>
+					<CardDescription>{currentYear} Races Completed</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p class="text-3xl font-bold">{seasonStats.totalRaces}</p>
@@ -170,7 +171,7 @@
 			<CardHeader>
 				<CardTitle>Recent Race Results</CardTitle>
 				<!-- Updated description to specify 2025 season -->
-				<CardDescription>Latest performances in the 2025 season</CardDescription>
+				<CardDescription>Latest performances in the {currentYear} season</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{#if recentResults.length > 0}

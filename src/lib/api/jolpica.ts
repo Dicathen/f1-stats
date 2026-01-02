@@ -487,3 +487,39 @@ export async function getDriver2025Stats(driverId: string) {
     return null;
   }
 }
+
+export async function getDriverCurrentStats(driverId: string) {
+  try {
+    const cacheKey = `driver_current_stats_${driverId}`;
+    const cached = getFromCache(cacheKey);
+
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Fetch 2025 results
+    const results = await getDriverResults(driverId, "current");
+
+    // Calculate stats from 2025 results
+    const stats = calculateDriverStats(results);
+
+    // Get 2025 standings to get current championship position
+    const standings = await getDriverStandings("current");
+    const driverStanding = standings.find(
+      (s: Standing) => s.Driver.driverId === driverId,
+    );
+
+    const seasonStats = {
+      ...stats,
+      totalRaces: results.length,
+      championshipPosition: driverStanding?.position || "N/A",
+      championshipPoints: driverStanding?.points || "0",
+    };
+
+    saveToCache(cacheKey, seasonStats);
+    return seasonStats;
+  } catch (error) {
+    console.error("Error fetching Current stats:", error);
+    return null;
+  }
+}
