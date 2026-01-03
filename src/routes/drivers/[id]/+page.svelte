@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { getDriver, getDriverResults, getDriver2025Stats, getDriverCurrentStats, type Driver, type Race } from '$lib/api/jolpica';
+	import { getDriver, getDriverResults, getDriverCurrentStats, type Driver, type Race } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
 	
 	const driverId = $derived($page.params.id);
@@ -59,7 +59,6 @@
 							<h1 class="text-3xl md:text-4xl font-bold mb-2">{driver.givenName} {driver.familyName}</h1>
 							<p class="text-muted-foreground">{driver.nationality}</p>
 						</div>
-						<!-- Updated badge to show 2025 championship position -->
 						{#if seasonStats.championshipPosition !== 'N/A'}
 							<Badge class="bg-primary text-primary-foreground">
 								P{seasonStats.championshipPosition} in {currentYear} Championship
@@ -67,7 +66,6 @@
 						{/if}
 					</div>
 					<p class="text-balance">
-						<!-- Updated description to reflect 2025 season stats -->
 						{#if seasonStats.wins > 0}
 							In the {currentYear} season, {driver.familyName} has achieved {seasonStats.wins} {seasonStats.wins === 1 ? 'win' : 'wins'} and {seasonStats.podiums} {seasonStats.podiums === 1 ? 'podium' : 'podiums'}.
 						{:else if seasonStats.totalRaces > 0}
@@ -78,7 +76,6 @@
 			</div>
 		</div>
 		
-		<!-- Updated stats grid to show 2025 season statistics -->
 		<!-- Stats Grid -->
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<Card>
@@ -170,7 +167,6 @@
 		<Card>
 			<CardHeader>
 				<CardTitle>Recent Race Results</CardTitle>
-				<!-- Updated description to specify 2025 season -->
 				<CardDescription>Latest performances in the {currentYear} season</CardDescription>
 			</CardHeader>
 			<CardContent>
