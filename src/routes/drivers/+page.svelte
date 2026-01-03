@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import { getDrivers, getDriverStandings, type Driver, type Standing } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
@@ -15,19 +21,21 @@
 				getDriverStandings('current', 'last')
 			]);
 
-			const validDrivers = allDrivers.filter(driver => driver.code);
-			
+			const validDrivers = allDrivers.filter((driver) => driver.code);
+
 			// Merge driver info with standings
-			drivers = validDrivers.map(driver => {
-				const standing = standings.find((s: Standing) => s.Driver.driverId === driver.driverId);
-				return { ...driver, stats: standing };
-			}).sort((a, b) => {
-				// Sort by championship position
-				const posA = a.stats ? parseInt(a.stats.position) : 999;
-				const posB = b.stats ? parseInt(b.stats.position) : 999;
-				return posA - posB;
-			});
-			
+			drivers = validDrivers
+				.map((driver) => {
+					const standing = standings.find((s: Standing) => s.Driver.driverId === driver.driverId);
+					return { ...driver, stats: standing };
+				})
+				.sort((a, b) => {
+					// Sort by championship position
+					const posA = a.stats ? parseInt(a.stats.position) : 999;
+					const posB = b.stats ? parseInt(b.stats.position) : 999;
+					return posA - posB;
+				});
+
 			loading = false;
 		} catch (error) {
 			console.error(' Error fetching drivers:', error);
@@ -41,7 +49,7 @@
 		<h1 class="text-4xl font-bold mb-2">Drivers</h1>
 		<p class="text-muted-foreground">Browse current Formula 1 drivers and their statistics</p>
 	</div>
-	
+
 	{#if loading}
 		<p class="text-muted-foreground">Loading drivers...</p>
 	{:else if drivers.length > 0}
@@ -52,7 +60,9 @@
 						<CardHeader>
 							<div class="flex items-start justify-between mb-2">
 								<div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-									<span class="text-xl font-bold text-primary">{driver.permanentNumber || driver.code || '?'}</span>
+									<span class="text-xl font-bold text-primary"
+										>{driver.permanentNumber || driver.code || '?'}</span
+									>
 								</div>
 								{#if driver.stats && parseInt(driver.stats.wins) > 0}
 									<Badge variant="secondary" class="bg-primary/10 text-primary border-primary/20">
@@ -61,8 +71,12 @@
 								{/if}
 							</div>
 							<!-- Apply team color to driver name -->
-							<CardTitle class="text-xl group-hover:text-primary transition-colors" style="color: {getTeamColor(driver.stats?.Constructors[0]?.name)}">
-								{driver.givenName} {driver.familyName}
+							<CardTitle
+								class="text-xl group-hover:text-primary transition-colors"
+								style="color: {getTeamColor(driver.stats?.Constructors[0]?.name)}"
+							>
+								{driver.givenName}
+								{driver.familyName}
 							</CardTitle>
 							<CardDescription>
 								{#if driver.stats?.Constructors[0]}
