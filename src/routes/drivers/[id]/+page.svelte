@@ -17,7 +17,6 @@
 		type Driver,
 		type Race
 	} from '$lib/api/jolpica';
-	import { getTeamColor } from '$lib/utils/team-colors';
 
 	const driverId = $derived($page.params.id);
 

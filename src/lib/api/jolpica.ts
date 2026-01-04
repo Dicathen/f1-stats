@@ -1,6 +1,4 @@
-// Jolpica F1 API utilities with caching
 const BASE_URL = 'https://api.jolpi.ca/ergast/f1';
-
 const CACHE_PREFIX = 'f1_cache_';
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour in milliseconds
 
@@ -9,8 +7,8 @@ interface CacheEntry<T> {
 	timestamp: number;
 }
 
-function getCacheKey(endpoint: string): string {
-	return `${CACHE_PREFIX}${endpoint}`;
+function getCacheKey(key: string): string {
+	return `${CACHE_PREFIX}${key}`;
 }
 
 function getFromCache<T>(key: string): T | null {
@@ -21,13 +19,11 @@ function getFromCache<T>(key: string): T | null {
 		const entry: CacheEntry<T> = JSON.parse(cached);
 		const now = Date.now();
 
-		// Check if cache is still valid
 		if (now - entry.timestamp < CACHE_DURATION) {
 			console.log('Cache hit for:', key);
 			return entry.data;
 		}
 
-		// Cache expired, remove it
 		localStorage.removeItem(getCacheKey(key));
 		return null;
 	} catch (error) {
@@ -50,13 +46,11 @@ function saveToCache<T>(key: string, data: T): void {
 }
 
 async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T | null> {
-	// Check cache first
 	const cached = getFromCache<T>(cacheKey);
 	if (cached !== null) {
 		return cached;
 	}
 
-	// Fetch from API
 	try {
 		const response = await fetch(`${BASE_URL}${endpoint}`);
 		if (!response.ok) {
@@ -64,7 +58,6 @@ async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T 
 		}
 		const data = await response.json();
 
-		// Save to cache
 		saveToCache(cacheKey, data);
 
 		return data;
@@ -72,6 +65,20 @@ async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T 
 		console.error('Error fetching data:', error);
 		return null;
 	}
+}
+
+function buildCacheKey(...parts: (string | number)[]): string {
+	return parts.join('_');
+}
+
+function extractErgastList<T>(data: any, path: string[]): T[] {
+	if (!data) return [];
+	let current: any = data.MRData;
+	for (const key of path) {
+		current = current?.[key];
+		if (current === undefined || current === null) return [];
+	}
+	return Array.isArray(current) ? current : [];
 }
 
 export interface Driver {
