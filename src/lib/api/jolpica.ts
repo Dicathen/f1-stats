@@ -135,93 +135,86 @@ export interface LapTime {
 	time: string;
 }
 
+export interface SeasonStats {
+	wins: number;
+	podiums: number;
+	poles: number;
+	fastestLaps: number;
+	totalPoints: number;
+	totalRaces: number;
+	championshipPosition: string;
+	championshipPoints: string;
+	season: number;
+	note?: string;
+}
+
+export interface DriverStats {
+	wins: number;
+	podiums: number;
+	poles: number;
+	fastestLaps: number;
+	totalPoints: number;
+}
+
 // Get current season driver standings
 export async function getDriverStandings(
 	season: string | number = 'current',
 	round: string | number = 'last'
 ) {
-	const cacheKey = `driver_standings_${season}_${round}`;
+	const cacheKey = buildCacheKey('driver_standings', season.toString(), round.toString());
 	const data = await fetchWithCache(`/${season}/${round}/driverStandings.json`, cacheKey);
 
-	if (!data?.MRData?.StandingsTable?.StandingsLists?.[0]?.DriverStandings) {
-		console.error('Unexpected response structure:', data);
-		return [];
-	}
-
-	return data.MRData.StandingsTable.StandingsLists[0].DriverStandings;
+	const standings = extractErgastList<Standing>(data, [
+		'StandingsTable',
+		'StandingsList',
+		'0',
+		'DriverStandings'
+	]);
+	return standings;
 }
 
 // Get all drivers for a season
 export async function getDrivers(season: string | number = 'current') {
-	const cacheKey = `drivers_${season}`;
+	const cacheKey = buildCacheKey('drivers', season.toString());
 	const data = await fetchWithCache(`/${season}/drivers.json?limit=100`, cacheKey);
 
-	if (!data?.MRData?.DriverTable?.Drivers) {
-		console.error('Unexpected response structure:', data);
-		return [];
-	}
-
-	return data.MRData.DriverTable.Drivers;
+	return extractErgastList<Driver>(data, ['DriverTable', 'Drivers']);
 }
 
 // Get specific driver details
 export async function getDriver(driverId: string) {
-	const cacheKey = `driver_${driverId}`;
+	const cacheKey = buildCacheKey('driver', driverId);
 	const data = await fetchWithCache(`/drivers/${driverId}.json`, cacheKey);
 
-	if (!data?.MRData?.DriverTable?.Drivers?.[0]) {
-		console.error('Unexpected response structure:', data);
-		return null;
-	}
-
-	return data.MRData.DriverTable.Drivers[0];
+	const drivers = extractErgastList<Driver>(data, ['DriverTable', 'Drivers']);
+	return drivers[0];
 }
 
 // Get driver results for current/recent season
 export async function getDriverResults(driverId: string, season: string | number = 'current') {
-	const cacheKey = `driver_results_${driverId}_${season}`;
+	const cacheKey = buildCacheKey('driver_results', driverId, season.toString());
 	const data = await fetchWithCache(
 		`/${season}/drivers/${driverId}/results.json?limit=100`,
 		cacheKey
 	);
 
-	if (!data?.MRData?.RaceTable?.Races) {
-		console.error('Unexpected response structure:', data);
-		return [];
-	}
-
-	return data.MRData.RaceTable.Races;
+	return extractErgastList<Race>(data, ['RaceTable', 'Races']);
 }
 
-// Get race schedule for a season
 export async function getRaces(season: string | number = 'current') {
-	const cacheKey = `races_${season}`;
+	const cacheKey = buildCacheKey('races', season.toString());
 	const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey);
 
-	if (!data?.MRData?.RaceTable?.Races) {
-		console.error('Unexpected response structure:', data);
-		return [];
-	}
-
-	return data.MRData.RaceTable.Races;
+	return extractErgastList<Race>(data, ['RaceTable', 'Races']);
 }
 
 // Get specific race results
 export async function getRaceResults(season: string | number, round: string | number) {
-	const cacheKey = `race_results_${season}_${round}`;
+	const cacheKey = buildCacheKey('race_results', season.toString(), round.toString());
 	const data = await fetchWithCache(`/${season}/${round}/results.json`, cacheKey);
+	const races = extractErgastList<Race>(data, ['RaceTable', 'Races']);
 
-	if (!data?.MRData?.RaceTable?.Races || data.MRData.RaceTable.Races.length === 0) {
-		console.log(`No race results available for ${season} round ${round}`);
-		return null;
-	}
-
-	if (!data.MRData.RaceTable.Races[0]) {
-		console.error('Unexpected response structure:', data);
-		return null;
-	}
-
-	return data.MRData.RaceTable.Races[0];
+	return races[0];
 }
 
 // Get lap times for a specific driver in a race
@@ -230,46 +223,34 @@ export async function getDriverLapTimes(
 	round: string | number,
 	driverId: string
 ) {
-	const cacheKey = `lap_times_${season}_${round}_${driverId}`;
+	const cacheKey = buildCacheKey('lap_times', season.toString(), round.toString(), driverId);
 	const data = await fetchWithCache(
 		`/${season}/${round}/drivers/${driverId}/laps.json?limit=1000`,
 		cacheKey
 	);
-
-	if (!data?.MRData?.RaceTable?.Races?.[0]?.Laps) {
-		console.error('Unexpected response structure:', data);
-		return [];
-	}
-
-	return data.MRData.RaceTable.Races[0].Laps;
+	const laps =
+		extractErgastList<{ Timings: LapTime[] }>(data, ['RaceTable', 'Races', '0', 'Laps']) ?? [];
+	return laps.flatMap((lap) => lap.Timings ?? []);
 }
 
-// Helper to calculate total wins, podiums, etc.
-export function calculateDriverStats(races: Race[]) {
+export function calculateDriverStats(races: Race[]): DriverStats {
 	let wins = 0;
 	let podiums = 0;
 	let poles = 0;
 	let fastestLaps = 0;
 	let totalPoints = 0;
-
 	races.forEach((race) => {
-		if (race.Results && race.Results.length > 0) {
-			const result = race.Results[0];
-			const position = Number.parseInt(result.position);
-			const points = Number.parseFloat(result.points);
-
+		const result = race.Results?.[0];
+		if (result) {
+			const position = parseInt(result.position, 10);
+			const points = parseFloat(result.points);
 			if (position === 1) wins++;
 			if (position <= 3) podiums++;
 			totalPoints += points;
-
-			// Check for pole position
 			if (result.grid === '1') poles++;
-
-			// Check for fastest lap
 			if (result.FastestLap?.rank === '1') fastestLaps++;
 		}
 	});
-
 	return { wins, podiums, poles, fastestLaps, totalPoints };
 }
 
@@ -284,36 +265,30 @@ export function lapTimeToSeconds(timeStr: string): number {
 	return Number.parseFloat(timeStr);
 }
 
-export async function getDriverCurrentStats(driverId: string) {
-	try {
-		const cacheKey = `driver_current_stats_${driverId}`;
-		const cached = getFromCache(cacheKey);
-
-		if (cached !== null) {
-			return cached;
-		}
-
-		// Fetch 2025 results
-		const results = await getDriverResults(driverId, 'current');
-
-		// Calculate stats from 2025 results
-		const stats = calculateDriverStats(results);
-
-		// Get 2025 standings to get current championship position
-		const standings = await getDriverStandings('current');
-		const driverStanding = standings.find((s: Standing) => s.Driver.driverId === driverId);
-
-		const seasonStats = {
-			...stats,
-			totalRaces: results.length,
-			championshipPosition: driverStanding?.position || 'N/A',
-			championshipPoints: driverStanding?.points || '0'
-		};
-
-		saveToCache(cacheKey, seasonStats);
-		return seasonStats;
-	} catch (error) {
-		console.error('Error fetching Current stats:', error);
-		return null;
+export async function getDriverCurrentStats(driverId: string): Promise<SeasonStats> {
+	const cacheKey = buildCacheKey('driver_current_stats', driverId);
+	const cached = getFromCache<SeasonStats>(cacheKey);
+	if (cached) {
+		return cached;
 	}
+
+	const results = await getDriverResults(driverId, 'current');
+	const stats = calculateDriverStats(results);
+
+	const standings = await getDriverStandings('current');
+	const driverStanding = standings.find((s: Standing) => s.Driver.driverId === driverId);
+
+	const currentYear = new Date().getFullYear();
+	const seasonStats: SeasonStats = {
+		...stats,
+		totalRaces: results.length,
+		championshipPosition: driverStanding?.position ?? 'N/A',
+		championshipPoints: driverStanding?.points ?? '0',
+		season: currentYear,
+		note:
+			results.length === 0 ? `Pre-season for ${currentYear}: No races completed yet.` : undefined
+	};
+
+	saveToCache(cacheKey, seasonStats);
+	return seasonStats;
 }

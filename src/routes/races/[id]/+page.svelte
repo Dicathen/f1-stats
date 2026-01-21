@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 	import {
 		Card,
 		CardContent,
@@ -14,7 +13,7 @@
 	import { getRaceResults, getDriverLapTimes, lapTimeToSeconds, type Race } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
 
-	const raceId = $page.params.id;
+	const { data } = $props<{ data: { raceId: string } }>();
 
 	let race: Race | null = $state(null);
 	let lapTimeData: Array<{ driver: string; lapTimes: number[]; color: string }> = $state([]);
@@ -34,6 +33,7 @@
 	];
 
 	onMount(async () => {
+		const raceId = data.raceId;
 		try {
 			// Parse season and round from ID (format: "2024-1")
 			const [season, round] = raceId.split('-');
@@ -51,14 +51,14 @@
 				const allLapTimes = await Promise.all(lapTimesPromises);
 
 				lapTimeData = allLapTimes
-					.map((laps, index) => {
+					.map((driverLapTimes, index) => {
 						const driver = topDrivers[index].Driver;
 						const constructorName = topDrivers[index].Constructor.name;
-						const times = laps.flatMap((lap: any) =>
-							lap.Timings.filter((t: any) => t.driverId === driver.driverId).map((t: any) =>
-								lapTimeToSeconds(t.time)
-							)
-						);
+
+						// Now driverLapTimes is already a flat array
+						const times = driverLapTimes
+							.filter((t: any) => t.driverId === driver.driverId)
+							.map((t: any) => lapTimeToSeconds(t.time));
 
 						return {
 							driver: `${driver.givenName} ${driver.familyName}`,
@@ -154,7 +154,9 @@
 										</div>
 									</div>
 									<div class="text-right">
-										<p class="font-mono text-sm">{result.Time?.time || result.status}</p>
+										<p class="font-mono text-sm">
+											{result.status !== 'Finished' ? result.status : result.Time?.time}
+										</p>
 										<p class="text-xs text-muted-foreground">{result.points} pts</p>
 									</div>
 								</div>
@@ -197,7 +199,8 @@
 						<div>
 							<p class="text-sm text-muted-foreground mb-1">Total Finishers</p>
 							<p class="font-semibold text-lg">
-								{race.Results.filter((r) => r.status === 'Finished').length}
+								{race.Results.filter((r) => r.status === 'Finished' || r.status === 'Lapped')
+									.length}
 							</p>
 						</div>
 						<div>

@@ -11,11 +11,11 @@
 	import { getRaces, type Race } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
 
-	let currentSeasonRaces = $state([]);
-	let selectedSeason = $state(2025);
+	const currentYear = new Date().getFullYear();
+	let currentSeasonRaces: Race[] = $state([]);
+	let selectedSeason = $state(currentYear);
 	let loading = $state(true);
 
-	const currentYear = new Date().getFullYear();
 	const seasons = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
 
 	async function loadRaces(season: number) {
