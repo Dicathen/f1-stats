@@ -17,7 +17,6 @@
 		type Race,
 		type SeasonStats
 	} from '$lib/api/jolpica';
-	import { error } from '@sveltejs/kit';
 
 	const { data } = $props<{ data: { driverId: string } }>();
 
@@ -83,8 +82,15 @@
 					<div class="flex items-start justify-between flex-wrap gap-4 mb-4">
 						<div>
 							<h1 class="text-3xl md:text-4xl font-bold mb-2">
-								{driver.givenName}
-								{driver.familyName}
+								<a
+									href={driver.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-foreground hover:text-ring"
+								>
+									{driver.givenName}
+									{driver.familyName}
+								</a>
 							</h1>
 							<p class="text-muted-foreground">{driver.nationality}</p>
 						</div>
