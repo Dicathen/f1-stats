@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 	import {
 		Card,
 		CardContent,
@@ -15,15 +14,15 @@
 		getDriverResults,
 		getDriverCurrentStats,
 		type Driver,
-		type Race
+		type Race,
+		type SeasonStats
 	} from '$lib/api/jolpica';
-	import { getTeamColor } from '$lib/utils/team-colors';
 
-	const driverId = $derived($page.params.id);
+	const { data } = $props<{ data: { driverId: string } }>();
 
 	let driver = $state<Driver | null>(null);
 	let recentResults = $state<Race[]>([]);
-	let seasonStats = $state({
+	let seasonStats = $state<SeasonStats>({
 		wins: 0,
 		podiums: 0,
 		poles: 0,
@@ -31,12 +30,17 @@
 		totalPoints: 0,
 		totalRaces: 0,
 		championshipPosition: 'N/A',
-		championshipPoints: '0'
+		championshipPoints: '0',
+		season: new Date().getFullYear(),
+		note: undefined
 	});
+
 	let loading = $state(true);
 	let currentYear = new Date().getFullYear();
 
 	onMount(async () => {
+		const driverId = data.driverId;
+
 		try {
 			const [driverData, results, stats] = await Promise.all([
 				getDriver(driverId),
@@ -48,9 +52,7 @@
 			const completedRaces = results.filter((race) => race.Results && race.Results.length > 0);
 			recentResults = completedRaces.slice(-5).reverse(); // Last 5 completed races
 
-			if (stats) {
-				seasonStats = stats;
-			}
+			seasonStats = { ...seasonStats, ...stats };
 
 			loading = false;
 		} catch (error) {
@@ -80,8 +82,15 @@
 					<div class="flex items-start justify-between flex-wrap gap-4 mb-4">
 						<div>
 							<h1 class="text-3xl md:text-4xl font-bold mb-2">
-								{driver.givenName}
-								{driver.familyName}
+								<a
+									href={driver.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-foreground hover:text-ring"
+								>
+									{driver.givenName}
+									{driver.familyName}
+								</a>
 							</h1>
 							<p class="text-muted-foreground">{driver.nationality}</p>
 						</div>

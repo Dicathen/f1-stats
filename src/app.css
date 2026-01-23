@@ -3,31 +3,41 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* Racing-inspired dark theme with red accent */
-	--background: hsl(0 0% 8%);
-	--foreground: hsl(0 0% 95%);
-	--card: hsl(0 0% 12%);
-	--card-foreground: hsl(0 0% 95%);
-	--popover: hsl(0 0% 10%);
-	--popover-foreground: hsl(0 0% 95%);
-	--primary: hsl(0 85% 55%);
-	--primary-foreground: hsl(0 0% 100%);
-	--secondary: hsl(0 0% 18%);
-	--secondary-foreground: hsl(0 0% 95%);
-	--muted: hsl(0 0% 16%);
-	--muted-foreground: hsl(0 0% 60%);
-	--accent: hsl(0 0% 20%);
-	--accent-foreground: hsl(0 0% 95%);
-	--destructive: hsl(0 84.2% 60.2%);
-	--destructive-foreground: hsl(0 0% 98%);
-	--border: hsl(0 0% 20%);
-	--input: hsl(0 0% 20%);
-	--ring: hsl(0 85% 55%);
-	--chart-1: hsl(0 85% 55%);
-	--chart-2: hsl(210 85% 55%);
-	--chart-3: hsl(45 90% 60%);
-	--chart-4: hsl(280 65% 60%);
-	--chart-5: hsl(160 60% 50%);
+	/* Rose Pine theme colors */
+	--background: #191724; /* Base */
+	--foreground: #e0def4; /* Text */
+
+	--card: #1f1d2e; /* Surface */
+	--card-foreground: #e0def4; /* Text */
+
+	--popover: #26233a; /* Overlay */
+	--popover-foreground: #e0def4; /* Text */
+
+	--primary: #eb6f92; /* Love (rose pink) */
+	--primary-foreground: #e0def4; /* Text */
+
+	--secondary: #26233a; /* Overlay */
+	--secondary-foreground: #e0def4; /* Text */
+
+	--muted: #21202e; /* Highlight Low */
+	--muted-foreground: #908caa; /* Subtle */
+
+	--accent: #9ccfd8; /* Foam */
+	--accent-foreground: #191724; /* Base for contrast */
+
+	--destructive: #eb6f92; /* Love */
+	--destructive-foreground: #e0def4; /* Text */
+
+	--border: #403d52; /* Highlight Med */
+	--input: #403d52; /* Highlight Med */
+	--ring: #c4a7e7; /* Iris */
+
+	--chart-1: #eb6f92; /* Love */
+	--chart-2: #9ccfd8; /* Foam */
+	--chart-3: #f6c177; /* Gold */
+	--chart-4: #c4a7e7; /* Iris */
+	--chart-5: #ebbcba; /* Rose */
+
 	--radius: 0.4rem;
 }
 

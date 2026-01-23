@@ -27,7 +27,7 @@
 			const now = new Date();
 			const completedRaces = races.filter((race) => {
 				const raceDate = new Date(race.date);
-				return raceDate < now || (race.Results && race.Results.legnth > 0);
+				return raceDate < now || (race.Results && race.Results.length > 0);
 			});
 			recentRaces = completedRaces.slice(-3).reverse(); // Last 3 races
 			loading = false;
