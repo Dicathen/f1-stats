@@ -98,6 +98,10 @@
 							<Badge class="bg-primary text-primary-foreground">
 								P{seasonStats.championshipPosition} in {currentYear} Championship
 							</Badge>
+						{:else}
+							<Badge class="bg-primary text-primary-foreground">
+								{seasonStats.note}
+							</Badge>
 						{/if}
 					</div>
 					<p class="text-balance">
