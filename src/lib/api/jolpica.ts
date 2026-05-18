@@ -77,12 +77,8 @@ function extractErgastList<T>(data: any, path: string[]): T[] {
 	if (!data) return [];
 	let current: any = data.MRData;
 	for (const key of path) {
-		console.log('Current:', current);
-		console.log('Key:', key);
-
 		current = current?.[key];
 
-		console.log('Result:', current);
 		if (current === undefined || current === null) return [];
 	}
 	return Array.isArray(current) ? current : [];
