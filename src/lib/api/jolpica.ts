@@ -2,6 +2,8 @@ const BASE_URL = 'https://api.jolpi.ca/ergast/f1';
 const CACHE_PREFIX = 'f1_cache_';
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour in milliseconds
 
+const delay = (ms: number | undefined) => new Promise((resolve) => setTimeout(resolve, ms));
+
 interface CacheEntry<T> {
 	data: T;
 	timestamp: number;
@@ -76,6 +78,7 @@ function extractErgastList<T>(data: any, path: string[]): T[] {
 	let current: any = data.MRData;
 	for (const key of path) {
 		current = current?.[key];
+
 		if (current === undefined || current === null) return [];
 	}
 	return Array.isArray(current) ? current : [];
@@ -156,6 +159,12 @@ export interface DriverStats {
 	totalPoints: number;
 }
 
+export interface DriverCareer {
+	wins: number;
+	poles: number;
+	championships: number;
+}
+
 // Get current season driver standings
 export async function getDriverStandings(
 	season: string | number = 'current',
@@ -166,7 +175,7 @@ export async function getDriverStandings(
 
 	const standings = extractErgastList<Standing>(data, [
 		'StandingsTable',
-		'StandingsList',
+		'StandingsLists',
 		'0',
 		'DriverStandings'
 	]);
@@ -291,4 +300,17 @@ export async function getDriverCurrentStats(driverId: string): Promise<SeasonSta
 
 	saveToCache(cacheKey, seasonStats);
 	return seasonStats;
+}
+
+export async function getDriverCareerStats(driverId: string) {
+	const cacheKey = buildCacheKey('driver_career_stats', driverId);
+	const cached = getFromCache<DriverCareer>(cacheKey);
+	if (cached) {
+		return cached;
+	}
+	const wins = fetch(`${BASE_URL}/drivers/${driverId}/results/1.json?limit=1`);
+	await delay(250);
+	const poles = fetch(`${BASE_URL}/drivers/${driverId}/qualifying/1.json?limit=1`);
+	await delay(250);
+	const championships = fetch(`${BASE_URL}/drivers/${driverId}/driverStandings/1.json?limit=1`);
 }
