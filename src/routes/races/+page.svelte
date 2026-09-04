@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import {
 		Card,
 		CardContent,
@@ -8,94 +7,76 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { getRaces, type Race } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
+	import type { Race } from '$lib/api/jolpica';
+	import type { PageData } from './$types';
 
-	const currentYear = new Date().getFullYear();
-	let currentSeasonRaces: Race[] = $state([]);
-	let selectedSeason = $state(currentYear);
-	let loading = $state(true);
-
-	const seasons = Array.from({ length: currentYear - 2019 }, (_, i) => currentYear - i);
-
-	async function loadRaces(season: number) {
-		loading = true;
-		try {
-			const races = await getRaces(season);
-			currentSeasonRaces = races;
-			loading = false;
-		} catch (error) {
-			console.error(' Error fetching races:', error);
-			loading = false;
-		}
-	}
-
-	onMount(() => {
-		loadRaces(selectedSeason);
-	});
+	let { data }: { data: PageData } = $props();
 
 	function getRaceSlug(race: Race) {
 		return `${race.season}-${race.round}`;
 	}
 </script>
 
+<svelte:head>
+	<title>{data.season} Races · F1 Stats</title>
+	<meta
+		name="description"
+		content="Formula 1 race calendar and results for the {data.season} season, including winners and lap-time analysis."
+	/>
+</svelte:head>
+
 <div class="space-y-6">
 	<div>
-		<h1 class="text-4xl font-bold mb-2">Races</h1>
+		<h1 class="mb-2 text-4xl font-bold">Races</h1>
 		<p class="text-muted-foreground">Browse race results and detailed statistics</p>
 	</div>
 
-	<!-- Season Selector -->
+	<!-- Season Selector: plain links, so the season lives in the URL and
+	     SvelteKit serialises navigation instead of racing overlapping fetches. -->
 	<Card>
 		<CardHeader>
 			<CardTitle>Select Season</CardTitle>
 			<CardDescription>Choose a season to view races</CardDescription>
 		</CardHeader>
 		<CardContent>
-			<div class="grid gap-3 md:grid-cols-5">
-				{#each seasons as season}
-					<button
-						onclick={() => {
-							selectedSeason = season;
-							loadRaces(season);
-						}}
-						class="p-4 rounded-lg transition-colors text-left {selectedSeason === season
+			<nav class="grid gap-3 md:grid-cols-5" aria-label="Season">
+				{#each data.seasons as season (season)}
+					{@const isActive = season === data.season}
+					<a
+						href="/races?season={season}"
+						aria-current={isActive ? 'page' : undefined}
+						class="rounded-lg p-4 text-left transition-colors {isActive
 							? 'bg-primary text-primary-foreground'
 							: 'bg-secondary/50 hover:bg-secondary'}"
 					>
-						<p class="text-2xl font-bold mb-1">{season}</p>
-						<p
-							class="text-xs {selectedSeason === season
-								? 'text-primary-foreground/70'
-								: 'text-muted-foreground'}"
-						>
-							{season === currentYear ? 'Current' : 'Historic'}
+						<p class="mb-1 text-2xl font-bold">{season}</p>
+						<p class="text-xs {isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}">
+							{season === data.currentYear ? 'Current' : 'Historic'}
 						</p>
-					</button>
+					</a>
 				{/each}
-			</div>
+			</nav>
 		</CardContent>
 	</Card>
 
 	<!-- Races List -->
 	<div>
-		<div class="flex items-center gap-3 mb-4">
-			<h2 class="text-2xl font-bold">{selectedSeason} Season</h2>
-			{#if selectedSeason === currentYear}
+		<div class="mb-4 flex items-center gap-3">
+			<h2 class="text-2xl font-bold">{data.season} Season</h2>
+			{#if data.season === data.currentYear}
 				<Badge>Current</Badge>
 			{/if}
 		</div>
 
-		{#if loading}
-			<p class="text-muted-foreground">Loading races...</p>
-		{:else if currentSeasonRaces.length > 0}
+		{#if data.races.length > 0}
 			<div class="grid gap-4 md:grid-cols-2">
-				{#each currentSeasonRaces as race}
-					<a href="/races/{getRaceSlug(race)}" class="block group">
-						<Card class="h-full transition-all hover:border-primary/50 group-hover:shadow-lg">
+				{#each data.races as race (getRaceSlug(race))}
+					<a href="/races/{getRaceSlug(race)}" class="group block">
+						<Card class="hover:border-primary/50 h-full transition-all group-hover:shadow-lg">
 							<CardHeader>
-								<div class="flex items-start justify-between mb-2">
-									<CardTitle class="text-lg group-hover:text-primary transition-colors"
+								<div class="mb-2 flex items-start justify-between">
+									<CardTitle class="group-hover:text-primary text-lg transition-colors"
 										>{race.raceName}</CardTitle
 									>
 									<Badge variant="outline">{race.Circuit.Location.country}</Badge>
@@ -106,7 +87,7 @@
 								<div class="flex items-center justify-between">
 									{#if race.Results && race.Results[0]}
 										<div>
-											<p class="text-sm text-muted-foreground mb-1">Winner</p>
+											<p class="text-muted-foreground mb-1 text-sm">Winner</p>
 											<p
 												class="font-semibold"
 												style="color: {getTeamColor(race.Results[0].Constructor?.name)}"
@@ -117,7 +98,7 @@
 										</div>
 									{/if}
 									<div class="text-right">
-										<p class="text-sm text-muted-foreground">
+										<p class="text-muted-foreground text-sm">
 											{new Date(race.date).toLocaleDateString('en-US', {
 												month: 'short',
 												day: 'numeric',

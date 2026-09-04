@@ -1,78 +1,106 @@
+import { getFromCache, saveToCache } from './cache';
+
 const BASE_URL = 'https://api.jolpi.ca/ergast/f1';
-const CACHE_PREFIX = 'f1_cache_';
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour in milliseconds
 
-const delay = (ms: number | undefined) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The `fetch` supplied to a SvelteKit `load`, or the global one. */
+type Fetcher = typeof globalThis.fetch;
 
-interface CacheEntry<T> {
-	data: T;
-	timestamp: number;
+export interface RequestOptions {
+	/**
+	 * Pass the `fetch` from a `load` function. SvelteKit then inlines the
+	 * response into the SSR payload so the client does not refetch on hydration.
+	 */
+	fetch?: Fetcher;
 }
 
-function getCacheKey(key: string): string {
-	return `${CACHE_PREFIX}${key}`;
-}
+export class ApiError extends Error {
+	readonly status?: number;
+	/** Seconds to wait, when the API sent a Retry-After header with a 429. */
+	readonly retryAfter?: number;
 
-function getFromCache<T>(key: string): T | null {
-	try {
-		const cached = localStorage.getItem(getCacheKey(key));
-		if (!cached) return null;
+	constructor(
+		message: string,
+		options: { status?: number; retryAfter?: number; cause?: unknown } = {}
+	) {
+		super(message, { cause: options.cause });
+		this.name = 'ApiError';
+		this.status = options.status;
+		this.retryAfter = options.retryAfter;
+	}
 
-		const entry: CacheEntry<T> = JSON.parse(cached);
-		const now = Date.now();
-
-		if (now - entry.timestamp < CACHE_DURATION) {
-			console.log('Cache hit for:', key);
-			return entry.data;
-		}
-
-		localStorage.removeItem(getCacheKey(key));
-		return null;
-	} catch (error) {
-		console.error('Error reading from cache:', error);
-		return null;
+	/** jolpica rate-limits aggressively; callers surface this differently. */
+	get isRateLimited(): boolean {
+		return this.status === 429;
 	}
 }
 
-function saveToCache<T>(key: string, data: T): void {
-	try {
-		const entry: CacheEntry<T> = {
-			data,
-			timestamp: Date.now()
-		};
-		localStorage.setItem(getCacheKey(key), JSON.stringify(entry));
-		console.log('Cached:', key);
-	} catch (error) {
-		console.error('Error saving to cache:', error);
-	}
-}
+/**
+ * Requests already in flight, keyed by cache key. Without this, two callers
+ * that start the same request concurrently both miss the cache and both hit
+ * the network -- which is exactly what a driver page does when it asks for a
+ * driver's results and their season stats at the same time.
+ */
+const inFlight = new Map<string, Promise<unknown>>();
 
-async function fetchWithCache<T>(endpoint: string, cacheKey: string): Promise<T | null> {
+/**
+ * Throws `ApiError` on failure rather than returning null, so callers can tell
+ * "the season has no races" apart from "the request failed".
+ */
+async function fetchWithCache<T>(
+	endpoint: string,
+	cacheKey: string,
+	options: RequestOptions = {}
+): Promise<T> {
 	const cached = getFromCache<T>(cacheKey);
-	if (cached !== null) {
-		return cached;
-	}
+	if (cached !== null) return cached;
 
-	try {
-		const response = await fetch(`${BASE_URL}${endpoint}`);
-		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		}
-		const data = await response.json();
+	const pending = inFlight.get(cacheKey);
+	if (pending) return pending as Promise<T>;
 
+	const request = fetchUncached<T>(endpoint, options).then((data) => {
 		saveToCache(cacheKey, data);
-
 		return data;
-	} catch (error) {
-		console.error('Error fetching data:', error);
-		return null;
+	});
+
+	inFlight.set(cacheKey, request);
+	try {
+		return await request;
+	} finally {
+		inFlight.delete(cacheKey);
 	}
+}
+
+async function fetchUncached<T>(endpoint: string, options: RequestOptions): Promise<T> {
+	const doFetch = options.fetch ?? globalThis.fetch;
+
+	let response: Response;
+	try {
+		response = await doFetch(`${BASE_URL}${endpoint}`);
+	} catch (cause) {
+		throw new ApiError(`Could not reach the F1 API (${endpoint})`, { cause });
+	}
+
+	if (!response.ok) {
+		const retryAfterHeader = response.headers.get('retry-after');
+		const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : undefined;
+		throw new ApiError(
+			response.status === 429
+				? 'The F1 API rate limit was hit. Please try again shortly.'
+				: `The F1 API returned ${response.status} for ${endpoint}`,
+			{ status: response.status, retryAfter: Number.isFinite(retryAfter) ? retryAfter : undefined }
+		);
+	}
+
+	return (await response.json()) as T;
 }
 
 function buildCacheKey(...parts: (string | number)[]): string {
 	return parts.join('_');
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any --
+   Walks an arbitrary path through an untyped JSON payload; the cast to T[] at
+   the end is the boundary where callers reassert the shape. */
 function extractErgastList<T>(data: any, path: string[]): T[] {
 	if (!data) return [];
 	let current: any = data.MRData;
@@ -83,6 +111,7 @@ function extractErgastList<T>(data: any, path: string[]): T[] {
 	}
 	return Array.isArray(current) ? current : [];
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export interface Driver {
 	driverId: string;
@@ -92,7 +121,8 @@ export interface Driver {
 	nationality: string;
 	permanentNumber?: string;
 	code?: string;
-	url: string;
+	/** Absent for reserve and test drivers, who the API still lists as current. */
+	url?: string;
 }
 
 export interface Standing {
@@ -132,10 +162,17 @@ export interface Race {
 	}>;
 }
 
-export interface LapTime {
-	lap: string;
+// A single entry of a lap's `Timings` array. Note the API returns `driverId`
+// here and carries the lap number on the enclosing `Laps[].number`, not here.
+export interface LapTiming {
+	driverId: string;
 	position: string;
 	time: string;
+}
+
+export interface Lap {
+	number: string;
+	Timings: LapTiming[];
 }
 
 export interface SeasonStats {
@@ -159,19 +196,14 @@ export interface DriverStats {
 	totalPoints: number;
 }
 
-export interface DriverCareer {
-	wins: number;
-	poles: number;
-	championships: number;
-}
-
 // Get current season driver standings
 export async function getDriverStandings(
 	season: string | number = 'current',
-	round: string | number = 'last'
+	round: string | number = 'last',
+	options: RequestOptions = {}
 ) {
 	const cacheKey = buildCacheKey('driver_standings', season.toString(), round.toString());
-	const data = await fetchWithCache(`/${season}/${round}/driverStandings.json`, cacheKey);
+	const data = await fetchWithCache(`/${season}/${round}/driverStandings.json`, cacheKey, options);
 
 	const standings = extractErgastList<Standing>(data, [
 		'StandingsTable',
@@ -183,44 +215,96 @@ export async function getDriverStandings(
 }
 
 // Get all drivers for a season
-export async function getDrivers(season: string | number = 'current') {
+export async function getDrivers(
+	season: string | number = 'current',
+	options: RequestOptions = {}
+) {
 	const cacheKey = buildCacheKey('drivers', season.toString());
-	const data = await fetchWithCache(`/${season}/drivers.json?limit=100`, cacheKey);
+	const data = await fetchWithCache(`/${season}/drivers.json?limit=100`, cacheKey, options);
 
 	return extractErgastList<Driver>(data, ['DriverTable', 'Drivers']);
 }
 
 // Get specific driver details
-export async function getDriver(driverId: string) {
+export async function getDriver(driverId: string, options: RequestOptions = {}) {
 	const cacheKey = buildCacheKey('driver', driverId);
-	const data = await fetchWithCache(`/drivers/${driverId}.json`, cacheKey);
+	const data = await fetchWithCache(
+		`/drivers/${encodeURIComponent(driverId)}.json`,
+		cacheKey,
+		options
+	);
 
 	const drivers = extractErgastList<Driver>(data, ['DriverTable', 'Drivers']);
 	return drivers[0];
 }
 
 // Get driver results for current/recent season
-export async function getDriverResults(driverId: string, season: string | number = 'current') {
+export async function getDriverResults(
+	driverId: string,
+	season: string | number = 'current',
+	options: RequestOptions = {}
+) {
 	const cacheKey = buildCacheKey('driver_results', driverId, season.toString());
 	const data = await fetchWithCache(
-		`/${season}/drivers/${driverId}/results.json?limit=100`,
-		cacheKey
+		`/${season}/drivers/${encodeURIComponent(driverId)}/results.json?limit=100`,
+		cacheKey,
+		options
 	);
 
 	return extractErgastList<Race>(data, ['RaceTable', 'Races']);
 }
 
-export async function getRaces(season: string | number = 'current') {
+export async function getRaces(season: string | number = 'current', options: RequestOptions = {}) {
 	const cacheKey = buildCacheKey('races', season.toString());
-	const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey);
+	const data = await fetchWithCache(`/${season}.json?limit=100`, cacheKey, options);
 
 	return extractErgastList<Race>(data, ['RaceTable', 'Races']);
 }
 
+// The season schedule endpoint never includes `Results`, so winners have to
+// come from the position-filtered endpoint. Filtering to P1 keeps this to a
+// single request per season instead of one per round.
+export async function getSeasonWinners(
+	season: string | number = 'current',
+	options: RequestOptions = {}
+) {
+	const cacheKey = buildCacheKey('season_winners', season.toString());
+	const data = await fetchWithCache(`/${season}/results/1.json?limit=100`, cacheKey, options);
+
+	return extractErgastList<Race>(data, ['RaceTable', 'Races']);
+}
+
+// Season schedule with each completed round's winner merged in, for list views.
+export async function getRacesWithWinners(
+	season: string | number = 'current',
+	options: RequestOptions = {}
+): Promise<Race[]> {
+	const [races, winners] = await Promise.all([
+		getRaces(season, options),
+		getSeasonWinners(season, options)
+	]);
+
+	const winnerByRound = new Map(
+		winners.flatMap((w) => {
+			const result = w.Results?.[0];
+			return result ? [[w.round, result] as const] : [];
+		})
+	);
+
+	return races.map((race) => {
+		const winner = winnerByRound.get(race.round);
+		return winner ? { ...race, Results: [winner] } : race;
+	});
+}
+
 // Get specific race results
-export async function getRaceResults(season: string | number, round: string | number) {
+export async function getRaceResults(
+	season: string | number,
+	round: string | number,
+	options: RequestOptions = {}
+) {
 	const cacheKey = buildCacheKey('race_results', season.toString(), round.toString());
-	const data = await fetchWithCache(`/${season}/${round}/results.json`, cacheKey);
+	const data = await fetchWithCache(`/${season}/${round}/results.json`, cacheKey, options);
 	const races = extractErgastList<Race>(data, ['RaceTable', 'Races']);
 
 	return races[0];
@@ -230,15 +314,17 @@ export async function getRaceResults(season: string | number, round: string | nu
 export async function getDriverLapTimes(
 	season: string | number,
 	round: string | number,
-	driverId: string
+	driverId: string,
+	options: RequestOptions = {}
 ) {
 	const cacheKey = buildCacheKey('lap_times', season.toString(), round.toString(), driverId);
+	// jolpica silently clamps `limit` to 100; no F1 race exceeds 100 laps.
 	const data = await fetchWithCache(
-		`/${season}/${round}/drivers/${driverId}/laps.json?limit=1000`,
-		cacheKey
+		`/${season}/${round}/drivers/${encodeURIComponent(driverId)}/laps.json?limit=100`,
+		cacheKey,
+		options
 	);
-	const laps =
-		extractErgastList<{ Timings: LapTime[] }>(data, ['RaceTable', 'Races', '0', 'Laps']) ?? [];
+	const laps = extractErgastList<Lap>(data, ['RaceTable', 'Races', '0', 'Laps']);
 	return laps.flatMap((lap) => lap.Timings ?? []);
 }
 
@@ -274,17 +360,24 @@ export function lapTimeToSeconds(timeStr: string): number {
 	return Number.parseFloat(timeStr);
 }
 
-export async function getDriverCurrentStats(driverId: string): Promise<SeasonStats> {
+export async function getDriverCurrentStats(
+	driverId: string,
+	options: RequestOptions = {}
+): Promise<SeasonStats> {
 	const cacheKey = buildCacheKey('driver_current_stats', driverId);
 	const cached = getFromCache<SeasonStats>(cacheKey);
 	if (cached) {
 		return cached;
 	}
 
-	const results = await getDriverResults(driverId, 'current');
-	const stats = calculateDriverStats(results);
+	// These two requests are independent; awaiting them in series doubled the
+	// time to first paint on a driver page.
+	const [results, standings] = await Promise.all([
+		getDriverResults(driverId, 'current', options),
+		getDriverStandings('current', 'last', options)
+	]);
 
-	const standings = await getDriverStandings('current');
+	const stats = calculateDriverStats(results);
 	const driverStanding = standings.find((s: Standing) => s.Driver.driverId === driverId);
 
 	const currentYear = new Date().getFullYear();
@@ -300,17 +393,4 @@ export async function getDriverCurrentStats(driverId: string): Promise<SeasonSta
 
 	saveToCache(cacheKey, seasonStats);
 	return seasonStats;
-}
-
-export async function getDriverCareerStats(driverId: string) {
-	const cacheKey = buildCacheKey('driver_career_stats', driverId);
-	const cached = getFromCache<DriverCareer>(cacheKey);
-	if (cached) {
-		return cached;
-	}
-	const wins = fetch(`${BASE_URL}/drivers/${driverId}/results/1.json?limit=1`);
-	await delay(250);
-	const poles = fetch(`${BASE_URL}/drivers/${driverId}/qualifying/1.json?limit=1`);
-	await delay(250);
-	const championships = fetch(`${BASE_URL}/drivers/${driverId}/driverStandings/1.json?limit=1`);
 }

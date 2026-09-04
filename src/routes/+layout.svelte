@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 
@@ -24,11 +24,11 @@
 				</a>
 
 				<ul class="flex items-center gap-6">
-					{#each navLinks as link}
+					{#each navLinks as link (link.href)}
 						<li>
 							<a
 								href={link.href}
-								class="text-sm font-medium transition-colors hover:text-primary {$page.url
+								class="text-sm font-medium transition-colors hover:text-primary {page.url
 									.pathname === link.href
 									? 'text-primary'
 									: 'text-muted-foreground'}"
