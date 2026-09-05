@@ -33,7 +33,9 @@ function ownEntries(store: Storage): Array<{ key: string; timestamp: number }> {
 	for (let i = 0; i < store.length; i++) {
 		const key = store.key(i);
 		if (!key?.startsWith(CACHE_PREFIX)) continue;
-		let timestamp = 0;
+		// Declared without an initialiser: both branches below assign it, so a
+		// starting value would be dead (no-useless-assignment).
+		let timestamp: number;
 		try {
 			timestamp = JSON.parse(store.getItem(key) ?? '{}').timestamp ?? 0;
 		} catch {
