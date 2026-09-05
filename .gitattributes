@@ -1,0 +1,6 @@
+# Normalize line endings: LF in the repository, LF on checkout everywhere.
+* text=auto eol=lf
+
+# Lockfiles and binaries are never text-converted.
+package-lock.json -text
+*.png binary

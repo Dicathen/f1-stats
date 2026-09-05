@@ -16,6 +16,13 @@ export default tseslint.config(
 				...globals.browser,
 				...globals.node
 			}
+		},
+		rules: {
+			'no-unused-vars': 'off',
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			]
 		}
 	},
 	{
@@ -26,8 +33,9 @@ export default tseslint.config(
 			}
 		},
 		rules: {
-			'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-			'@typescript-eslint/no-unused-vars': 'error'
+			// The app is served from the domain root and sets no `base` path, so
+			// resolve() would add ceremony without changing any generated URL.
+			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
 	{

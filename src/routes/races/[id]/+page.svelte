@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import {
 		Card,
 		CardContent,
@@ -11,22 +10,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import LapTimeBoxChart from '$lib/components/lap-time-box-chart.svelte';
 	import LapTimeLineChart from '$lib/components/lap-time-line-chart.svelte';
-	import { getRaceResults, getDriverLapTimes, lapTimeToSeconds, type Race } from '$lib/api/jolpica';
+	import { getDriverLapTimes, lapTimeToSeconds } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
+	import type { PageData } from './$types';
 
-	const { data } = $props<{ data: { raceId: string } }>();
+	let { data }: { data: PageData } = $props();
 
-	let race: Race | null = $state(null);
-	let lapTimeData: Array<{ driver: string; lapTimes: number[]; color: string }> = $state([]);
-	let loading = $state(true);
+	const race = $derived(data.race);
 
-	let plainLapTimeData = $derived(
-		lapTimeData.map((d) => ({
-			driver: d.driver,
-			lapTimes: [...d.lapTimes],
-			color: d.color
-		}))
-	);
+	type LapTimeSeries = { driver: string; lapTimes: number[]; color: string };
+
+	let lapTimeData = $state<LapTimeSeries[]>([]);
+	let lapTimesLoading = $state(true);
+	let lapTimesFailed = $state(false);
 
 	const driverColors = [
 		'#3B82F6',
@@ -41,192 +37,193 @@
 		'#84CC16'
 	];
 
-	onMount(async () => {
-		const raceId = data.raceId;
-		try {
-			// Parse season and round from ID (format: "2024-1")
-			const [season, round] = raceId.split('-');
+	// Lap times are three extra requests and only feed the charts, so they load
+	// after the results rather than blocking first paint.
+	$effect(() => {
+		const { season, round } = data;
+		const podium = race.Results?.slice(0, 3) ?? [];
 
-			const raceData = await getRaceResults(season, round);
-			race = raceData;
+		let cancelled = false;
+		lapTimesLoading = true;
+		lapTimesFailed = false;
+		lapTimeData = [];
 
-			// Fetch lap times for top 5 finishers
-			if (race.Results && race.Results.length > 0) {
-				const topDrivers = race.Results.slice(0, 3);
-				const lapTimesPromises = topDrivers.map((result) =>
-					getDriverLapTimes(season, round, result.Driver.driverId)
-				);
+		if (podium.length === 0) {
+			lapTimesLoading = false;
+			return;
+		}
 
-				const allLapTimes = await Promise.all(lapTimesPromises);
-
+		Promise.all(podium.map((result) => getDriverLapTimes(season, round, result.Driver.driverId)))
+			.then((allLapTimes) => {
+				if (cancelled) return;
 				lapTimeData = allLapTimes
-					.map((driverLapTimes, index) => {
-						const driver = topDrivers[index].Driver;
-						const constructorName = topDrivers[index].Constructor.name;
-
-						// Now driverLapTimes is already a flat array
-						const times = driverLapTimes
-							.filter((t: any) => t.driverId === driver.driverId)
-							.map((t: any) => lapTimeToSeconds(t.time));
-
+					.map((timings, index) => {
+						const { Driver, Constructor } = podium[index];
 						return {
-							driver: `${driver.givenName} ${driver.familyName}`,
-							lapTimes: times,
-							color: getTeamColor(constructorName) || driverColors[index % driverColors.length]
+							driver: `${Driver.givenName} ${Driver.familyName}`,
+							lapTimes: timings.map((t) => lapTimeToSeconds(t.time)),
+							color: getTeamColor(Constructor.name) || driverColors[index % driverColors.length]
 						};
 					})
 					.filter((d) => d.lapTimes.length > 0);
-			}
+			})
+			.catch(() => {
+				if (!cancelled) lapTimesFailed = true;
+			})
+			.finally(() => {
+				if (!cancelled) lapTimesLoading = false;
+			});
 
-			loading = false;
-		} catch (error) {
-			console.error(' Error fetching race data:', error);
-			loading = false;
-		}
+		return () => {
+			cancelled = true;
+		};
 	});
 </script>
 
+<svelte:head>
+	<title>{race.raceName} {race.season} · F1 Stats</title>
+	<meta
+		name="description"
+		content="Full classification for the {race.season} {race.raceName} at {race.Circuit
+			.circuitName}, with lap-time distribution for the podium finishers."
+	/>
+</svelte:head>
+
 <div class="space-y-6">
-	<Button href="/races" variant="ghost" class="mb-4">← Back to Races</Button>
+	<Button href="/races?season={race.season}" variant="ghost" class="mb-4">← Back to Races</Button>
 
-	{#if loading}
-		<p class="text-muted-foreground">Loading race details...</p>
-	{:else if race}
-		<!-- Race Header -->
-		<div class="bg-card border border-border rounded-lg p-6 md:p-8">
-			<div class="flex items-start justify-between flex-wrap gap-4 mb-4">
-				<div>
-					<h1 class="text-3xl md:text-4xl font-bold mb-2">{race.raceName}</h1>
-					<p class="text-muted-foreground text-lg">{race.Circuit.circuitName}</p>
-				</div>
-				<Badge class="bg-primary text-primary-foreground">
-					{new Date(race.date).toLocaleDateString('en-US', {
-						year: 'numeric',
-						month: 'long',
-						day: 'numeric'
-					})}
-				</Badge>
+	<!-- Race Header -->
+	<div class="bg-card border-border rounded-lg border p-6 md:p-8">
+		<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<h1 class="mb-2 text-3xl font-bold md:text-4xl">{race.raceName}</h1>
+				<p class="text-muted-foreground text-lg">{race.Circuit.circuitName}</p>
 			</div>
-
-			<div class="grid gap-4 md:grid-cols-3 mt-6">
-				<div>
-					<p class="text-sm text-muted-foreground mb-1">Country</p>
-					<p class="font-semibold">{race.Circuit.Location.country}</p>
-				</div>
-				<div>
-					<p class="text-sm text-muted-foreground mb-1">Location</p>
-					<p class="font-semibold">{race.Circuit.Location.locality}</p>
-				</div>
-				<div>
-					<p class="text-sm text-muted-foreground mb-1">Round</p>
-					<p class="font-semibold">{race.round}</p>
-				</div>
-			</div>
+			<Badge class="bg-primary text-primary-foreground">
+				{new Date(race.date).toLocaleDateString('en-US', {
+					year: 'numeric',
+					month: 'long',
+					day: 'numeric'
+				})}
+			</Badge>
 		</div>
 
-		<!-- Race Results -->
-		<Card>
-			<CardHeader>
-				<CardTitle>Race Results</CardTitle>
-				<CardDescription>Final classification</CardDescription>
-			</CardHeader>
-			<CardContent>
-				{#if race.Results && race.Results.length > 0}
-					<div class="space-y-2">
-						{#each race.Results as result}
-							<a
-								href="/drivers/{result.Driver.driverId}"
-								class="block hover:bg-secondary transition-colors"
-							>
-								<div class="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
-									<div class="flex items-center gap-4">
-										<div
-											class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-											style="background-color: {parseInt(result.position) === 1
-												? '#FFD700'
-												: parseInt(result.position) === 2
-													? '#C0C0C0'
-													: parseInt(result.position) === 3
-														? '#CD7F32'
-														: 'var(--color-muted)'}"
+		<div class="mt-6 grid gap-4 md:grid-cols-3">
+			<div>
+				<p class="text-muted-foreground mb-1 text-sm">Country</p>
+				<p class="font-semibold">{race.Circuit.Location.country}</p>
+			</div>
+			<div>
+				<p class="text-muted-foreground mb-1 text-sm">Location</p>
+				<p class="font-semibold">{race.Circuit.Location.locality}</p>
+			</div>
+			<div>
+				<p class="text-muted-foreground mb-1 text-sm">Round</p>
+				<p class="font-semibold">{race.round}</p>
+			</div>
+		</div>
+	</div>
+
+	<!-- Race Results -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Race Results</CardTitle>
+			<CardDescription>Final classification</CardDescription>
+		</CardHeader>
+		<CardContent>
+			{#if race.Results && race.Results.length > 0}
+				<div class="space-y-2">
+					{#each race.Results as result (result.Driver.driverId)}
+						<a
+							href="/drivers/{result.Driver.driverId}"
+							class="hover:bg-secondary block transition-colors"
+						>
+							<div class="bg-secondary/50 flex items-center justify-between rounded-lg p-4">
+								<div class="flex items-center gap-4">
+									<div
+										class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+										style="background-color: {parseInt(result.position, 10) === 1
+											? '#FFD700'
+											: parseInt(result.position, 10) === 2
+												? '#C0C0C0'
+												: parseInt(result.position, 10) === 3
+													? '#CD7F32'
+													: 'var(--color-muted)'}"
+									>
+										<span
+											class="font-bold {parseInt(result.position, 10) <= 3
+												? 'text-primary-foreground'
+												: 'text-foreground'}">{result.position}</span
 										>
-											<span
-												class="font-bold {parseInt(result.position) <= 3
-													? 'text-primary-foreground'
-													: 'text-foreground'}">{result.position}</span
-											>
-										</div>
-										<div>
-											<p
-												class="font-semibold"
-												style="color: {getTeamColor(result.Constructor.name)}"
-											>
-												{result.Driver.givenName}
-												{result.Driver.familyName}
-											</p>
-											<p class="text-sm text-muted-foreground">{result.Constructor.name}</p>
-										</div>
 									</div>
-									<div class="text-right">
-										<p class="font-mono text-sm">
-											{result.status !== 'Finished' ? result.status : result.Time?.time}
+									<div>
+										<p class="font-semibold" style="color: {getTeamColor(result.Constructor.name)}">
+											{result.Driver.givenName}
+											{result.Driver.familyName}
 										</p>
-										<p class="text-xs text-muted-foreground">{result.points} pts</p>
+										<p class="text-muted-foreground text-sm">{result.Constructor.name}</p>
 									</div>
 								</div>
-							</a>
-						{/each}
-					</div>
-				{:else}
-					<p class="text-muted-foreground">No results available</p>
-				{/if}
-			</CardContent>
-		</Card>
+								<div class="text-right">
+									<p class="font-mono text-sm">
+										{result.status !== 'Finished' ? result.status : result.Time?.time}
+									</p>
+									<p class="text-muted-foreground text-xs">{result.points} pts</p>
+								</div>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-muted-foreground">No results available</p>
+			{/if}
+		</CardContent>
+	</Card>
 
-		<!-- Lap Time Distribution Chart -->
-		{#if lapTimeData.length > 0}
-			<LapTimeBoxChart data={lapTimeData} />
-			<LapTimeLineChart data={plainLapTimeData} />
-		{/if}
-
-		<!-- Race Stats -->
-		<Card>
-			<CardHeader>
-				<CardTitle>Race Statistics</CardTitle>
-			</CardHeader>
-			<CardContent>
-				{#if race.Results && race.Results[0]}
-					<div class="grid gap-4 md:grid-cols-2">
-						<div>
-							<p class="text-sm text-muted-foreground mb-1">Winner</p>
-							<p
-								class="font-semibold text-lg"
-								style="color: {getTeamColor(race.Results[0].Constructor.name)}"
-							>
-								{race.Results[0].Driver.givenName}
-								{race.Results[0].Driver.familyName}
-							</p>
-						</div>
-						<div>
-							<p class="text-sm text-muted-foreground mb-1">Winning Time</p>
-							<p class="font-semibold text-lg font-mono">{race.Results[0].Time?.time || 'N/A'}</p>
-						</div>
-						<div>
-							<p class="text-sm text-muted-foreground mb-1">Total Finishers</p>
-							<p class="font-semibold text-lg">
-								{race.Results.filter((r) => r.status === 'Finished' || r.status === 'Lapped')
-									.length}
-							</p>
-						</div>
-						<div>
-							<p class="text-sm text-muted-foreground mb-1">Season Round</p>
-							<p class="font-semibold text-lg">Round {race.round} of {race.season}</p>
-						</div>
-					</div>
-				{/if}
-			</CardContent>
-		</Card>
-	{:else}
-		<p class="text-muted-foreground">Race not completed</p>
+	<!-- Lap Time Charts -->
+	{#if lapTimesLoading}
+		<p class="text-muted-foreground" aria-live="polite">Loading lap times…</p>
+	{:else if lapTimesFailed}
+		<p class="text-muted-foreground" aria-live="polite">Lap time data is unavailable right now.</p>
+	{:else if lapTimeData.length > 0}
+		<LapTimeBoxChart data={lapTimeData} />
+		<LapTimeLineChart data={lapTimeData} />
 	{/if}
+
+	<!-- Race Stats -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Race Statistics</CardTitle>
+		</CardHeader>
+		<CardContent>
+			{#if race.Results && race.Results[0]}
+				<div class="grid gap-4 md:grid-cols-2">
+					<div>
+						<p class="text-muted-foreground mb-1 text-sm">Winner</p>
+						<p
+							class="text-lg font-semibold"
+							style="color: {getTeamColor(race.Results[0].Constructor.name)}"
+						>
+							{race.Results[0].Driver.givenName}
+							{race.Results[0].Driver.familyName}
+						</p>
+					</div>
+					<div>
+						<p class="text-muted-foreground mb-1 text-sm">Winning Time</p>
+						<p class="font-mono text-lg font-semibold">{race.Results[0].Time?.time || 'N/A'}</p>
+					</div>
+					<div>
+						<p class="text-muted-foreground mb-1 text-sm">Total Finishers</p>
+						<p class="text-lg font-semibold">
+							{race.Results.filter((r) => r.status === 'Finished' || r.status === 'Lapped').length}
+						</p>
+					</div>
+					<div>
+						<p class="text-muted-foreground mb-1 text-sm">Season Round</p>
+						<p class="text-lg font-semibold">Round {race.round} of {race.season}</p>
+					</div>
+				</div>
+			{/if}
+		</CardContent>
+	</Card>
 </div>
