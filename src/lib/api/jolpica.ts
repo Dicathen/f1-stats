@@ -39,8 +39,23 @@ export class ApiError extends Error {
  * that start the same request concurrently both miss the cache and both hit
  * the network -- which is exactly what a driver page does when it asks for a
  * driver's results and their season stats at the same time.
+ *
+ * Scoped per fetch function rather than module-wide. On the server, SvelteKit
+ * hands each request its own `fetch`, and module state on Cloudflare Workers
+ * outlives a single request: a shared map would let one visitor's request
+ * await a promise owned by another's, which the Workers runtime does not
+ * support. Per-fetch scoping keeps the dedup inside one page load.
  */
-const inFlight = new Map<string, Promise<unknown>>();
+const inFlightByFetch = new WeakMap<Fetcher, Map<string, Promise<unknown>>>();
+
+function inFlightFor(doFetch: Fetcher): Map<string, Promise<unknown>> {
+	let map = inFlightByFetch.get(doFetch);
+	if (!map) {
+		map = new Map();
+		inFlightByFetch.set(doFetch, map);
+	}
+	return map;
+}
 
 /**
  * Throws `ApiError` on failure rather than returning null, so callers can tell
@@ -54,6 +69,7 @@ async function fetchWithCache<T>(
 	const cached = getFromCache<T>(cacheKey);
 	if (cached !== null) return cached;
 
+	const inFlight = inFlightFor(options.fetch ?? globalThis.fetch);
 	const pending = inFlight.get(cacheKey);
 	if (pending) return pending as Promise<T>;
 
