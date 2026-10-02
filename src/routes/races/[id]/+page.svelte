@@ -10,6 +10,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import LapTimeBoxChart from '$lib/components/lap-time-box-chart.svelte';
 	import LapTimeLineChart from '$lib/components/lap-time-line-chart.svelte';
+	import TrackMap from '$lib/components/track-map.svelte';
 	import { getDriverLapTimes, lapTimeToSeconds } from '$lib/api/jolpica';
 	import { getTeamColor } from '$lib/utils/team-colors';
 	import type { PageData } from './$types';
@@ -93,35 +94,43 @@
 	<Button href="/races?season={race.season}" variant="ghost" class="mb-4">← Back to Races</Button>
 
 	<!-- Race Header -->
-	<div class="bg-card border-border rounded-lg border p-6 md:p-8">
-		<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
-			<div>
-				<h1 class="mb-2 text-3xl font-bold md:text-4xl">{race.raceName}</h1>
-				<p class="text-muted-foreground text-lg">{race.Circuit.circuitName}</p>
+	<div class="bg-card border-border flex flex-col gap-6 rounded-lg border p-6 md:flex-row md:p-8">
+		<div class="flex-1">
+			<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<h1 class="mb-2 text-3xl font-bold md:text-4xl">{race.raceName}</h1>
+					<p class="text-muted-foreground text-lg">{race.Circuit.circuitName}</p>
+				</div>
+				<Badge class="bg-primary text-primary-foreground">
+					{new Date(race.date).toLocaleDateString('en-US', {
+						year: 'numeric',
+						month: 'long',
+						day: 'numeric'
+					})}
+				</Badge>
 			</div>
-			<Badge class="bg-primary text-primary-foreground">
-				{new Date(race.date).toLocaleDateString('en-US', {
-					year: 'numeric',
-					month: 'long',
-					day: 'numeric'
-				})}
-			</Badge>
+
+			<div class="mt-6 grid gap-4 md:grid-cols-3">
+				<div>
+					<p class="text-muted-foreground mb-1 text-sm">Country</p>
+					<p class="font-semibold">{race.Circuit.Location.country}</p>
+				</div>
+				<div>
+					<p class="text-muted-foreground mb-1 text-sm">Location</p>
+					<p class="font-semibold">{race.Circuit.Location.locality}</p>
+				</div>
+				<div>
+					<p class="text-muted-foreground mb-1 text-sm">Round</p>
+					<p class="font-semibold">{race.round}</p>
+				</div>
+			</div>
 		</div>
 
-		<div class="mt-6 grid gap-4 md:grid-cols-3">
-			<div>
-				<p class="text-muted-foreground mb-1 text-sm">Country</p>
-				<p class="font-semibold">{race.Circuit.Location.country}</p>
-			</div>
-			<div>
-				<p class="text-muted-foreground mb-1 text-sm">Location</p>
-				<p class="font-semibold">{race.Circuit.Location.locality}</p>
-			</div>
-			<div>
-				<p class="text-muted-foreground mb-1 text-sm">Round</p>
-				<p class="font-semibold">{race.round}</p>
-			</div>
-		</div>
+		<TrackMap
+			circuitId={race.Circuit.circuitId}
+			circuitName={race.Circuit.circuitName}
+			class="self-center md:self-start"
+		/>
 	</div>
 
 	<!-- Race Results -->

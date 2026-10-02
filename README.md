@@ -10,6 +10,13 @@ The reasoning to not include total historical data is to respect the [jolpica-f1
 - Race information with standings and finish times.
 - Boxplot of podium finishers' lap times, with pit and safety-car laps split out as outliers.
 - Driver's list with individual pages with current year stats.
+- Track layout diagram on each race page.
+
+## Credits
+
+Circuit outlines are derived from [bacinger/f1-circuits](https://github.com/bacinger/f1-circuits)
+(MIT). See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full licence
+text and other attributions.
 
 ## Todo
 
